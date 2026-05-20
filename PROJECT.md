@@ -1,89 +1,88 @@
 # AgentWallet — PROJECT.md
 
-> 단일 진실 소스. 코드와 이 문서가 어긋나면 코드가 틀린 것.
+> Single source of truth. If the code disagrees with this document, the code is wrong.
 
-소유자: Junhyuk Lee (이준혁) · Ebsilon, Inc.
-시작: 2026-05-20
-상태: **MVP-α — 셀프 호스팅 단일 사용자**
+Status: **MVP-α — self-hosted single user**
 
 ---
 
-## 1. 목적
+## 1. Purpose
 
-AI 에이전트가 사용자 카드로 자율 결제하도록 — 단, 사용자가 한도를 걸 수 있게.
-**"바이어 측 Stripe."** MetaMask가 dApp에 서명을 주듯, AgentWallet은 에이전트에 결제를 준다.
+Let AI agents pay autonomously with the user's credit card — within limits the user controls.
 
-**MVP-α는 본인이 자기 Claude/Cursor에 쓰는 단일 사용자 셀프 호스팅 도구.** 출시 아님.
+**"Stripe for the buyer side."** MetaMask gives dApps signing power; AgentWallet gives AI agents payment power.
 
----
-
-## 2. 페르소나
-
-- **사용자 (본인)** — 자기 카드로 자기 에이전트가 결제하게 함
-- **에이전트** — 사용자가 발급한 API key로 결제 요청
-- **머천트** — 일반 카드 결제로 받음 (우리 존재 모름)
+**MVP-α is a single-user, self-hosted tool for the developer's own Claude/Cursor.** Not a public launch.
 
 ---
 
-## 3. 핵심 유저 스토리
+## 2. Personas
 
-- **US-1.** 사용자는 카드를 한 번 추가한다 (Stripe Elements).
-- **US-2.** 사용자는 에이전트를 만들고 한도(월/per-tx)를 설정한 뒤 API key를 받는다.
-- **US-3.** 에이전트는 API key로 `POST /api/pay`를 호출해 결제한다 — `reason` 필수.
-- **US-4.** 사용자는 대시보드에서 모든 결제 내역과 이유를 본다.
-- **US-5.** 사용자는 에이전트를 즉시 kill switch로 차단한다.
+- **User** — registers their card and grants spending authority to their own agents.
+- **Agent** — calls the payment API with the issued API key.
+- **Merchant** — receives a normal card charge; unaware of AgentWallet's existence.
 
 ---
 
-## 4. 비목적 (MVP-α에서 안 함)
+## 3. Core user stories
 
-- ❌ 멀티 사용자 / 가입 / 로그인
-- ❌ 이메일 HITL — 한도가 통제. 더 엄격하면 한도 낮춤.
-- ❌ Issuing / 크립토 / ACH / 다중 통화
-- ❌ Web Push / 익스텐션
-- ❌ OAuth / refresh token — 단순 Bearer API key
-- ❌ Basis Theory / vault 분리 — Stripe Customer가 vault
+- **US-1.** The user adds a card once (Stripe Elements).
+- **US-2.** The user creates an agent with monthly + per-tx limits and receives an API key.
+- **US-3.** The agent calls `POST /api/pay` with the API key — `reason` is required.
+- **US-4.** The user sees every payment with its reason on the dashboard.
+- **US-5.** The user can instantly kill any agent (kill switch).
 
 ---
 
-## 5. 아키텍처 (3 컴포넌트)
+## 4. Non-goals (explicitly excluded from MVP-α)
+
+- ❌ Multi-user / signup / login
+- ❌ Email HITL — limits are the control. Tighten by lowering limits.
+- ❌ Card issuing / crypto / ACH / multi-currency
+- ❌ Web push / browser extension
+- ❌ OAuth / refresh tokens — plain Bearer API key
+- ❌ Vault separation (e.g. Basis Theory) — Stripe Customer is the vault
+
+---
+
+## 5. Architecture (3 components)
 
 ```
 [Claude/Cursor] ──MCP stdio──> [bin/mcp.ts] ──HTTP──> [Next.js localhost:3000]
                                                               │
-                                                              ├──> Stripe (vault + 차지)
+                                                              ├──> Stripe (vault + charges)
                                                               └──> SQLite (~/.agentwallet/db.sqlite)
 ```
 
 ---
 
-## 6. 기술 스택 (잠금)
+## 6. Tech stack (locked)
 
-| 레이어 | 선택 |
+| Layer | Choice |
 |---|---|
-| 앱 | Next.js 15 App Router + TypeScript |
-| DB | SQLite (Node 26 빌트인 `node:sqlite`) at `~/.agentwallet/db.sqlite` |
-| 결제 | Stripe (Test mode, off_session PaymentIntent) |
-| UI | Tailwind CSS (shadcn 없이) |
-| 인증 | **없음** (localhost 전용). 에이전트만 Bearer API key |
+| App | Next.js 15 App Router + TypeScript |
+| DB | SQLite via Node 26 builtin `node:sqlite` at `~/.agentwallet/db.sqlite` |
+| Payments | Stripe (test mode, off_session PaymentIntent) |
+| UI | Tailwind CSS (no shadcn) |
+| Auth | **None** (localhost only). Agents use Bearer API key. |
 | MCP | `bin/mcp.ts` — `@modelcontextprotocol/sdk` stdio |
-| 패키지 매니저 | `pnpm` |
+| Package manager | `pnpm` |
 
 ---
 
-## 7. 원칙 3개
+## 7. Inviolable principles
 
-1. **사용자가 last word** — kill switch 1초 내 작동.
-2. **모든 결제에 `reason`** — context 없으면 거절.
-3. **PROJECT.md = 진실** — 새 기능은 PROJECT.md 먼저.
+1. **User has the last word** — kill switch effective within one second.
+2. **Every payment carries a `reason`** — requests without one are rejected.
+3. **PROJECT.md is the truth** — new features land in this file before the code.
 
 ---
 
-## 8. 데이터 모델
+## 8. Data model
 
 ```sql
 CREATE TABLE settings (
-  id INTEGER PRIMARY KEY CHECK (id = 1),  -- 단일 사용자 = 1행만
+  id INTEGER PRIMARY KEY CHECK (id = 1),  -- single user = exactly one row
   stripe_customer_id TEXT,
   stripe_pm_id TEXT,
   card_last4 TEXT,
@@ -120,47 +119,50 @@ CREATE TABLE payments (
 ## 9. API
 
 ```
-POST /api/setup-intent          # Stripe SetupIntent client_secret 반환
-POST /api/cards/confirm         # SetupIntent succeeded 후 pm 저장
-POST /api/agents                # 에이전트 생성 → API key (raw, 1회만)
-GET  /api/agents                # 목록
+POST /api/setup-intent          # returns Stripe SetupIntent client_secret
+POST /api/cards/confirm         # persists payment method after SetupIntent succeeds
+POST /api/agents                # create agent → returns API key (raw, shown once)
+GET  /api/agents                # list agents
 POST /api/agents/:id/kill       # kill switch
-POST /api/pay                   # 에이전트 호출 (Bearer + amount + merchant + reason + idempotency_key)
-GET  /api/payments              # 대시보드용
+POST /api/pay                   # agent endpoint (Bearer + amount + merchant + reason + idempotency_key)
+GET  /api/payments              # dashboard read
 ```
 
 ---
 
-## 10. 페이지
+## 10. Pages
 
 ```
-/                    # 대시보드 (카드 상태 + 에이전트 목록 + 최근 결제 + kill switch)
-/setup               # 카드 추가 (Stripe Elements)
-/agents/new          # 에이전트 생성 폼
+/                    # dashboard (card status + agents + recent payments + kill switch)
+/setup               # add card (Stripe Elements)
+/agents/new          # create agent form
 ```
 
 ---
 
-## 11. 빌드 단계 (4 phase)
+## 11. Build phases
 
-| Phase | 작업 | 병렬 가능? |
+| Phase | Work | Parallel? |
 |---|---|---|
-| **0. 스캐폴딩** | Next.js + Tailwind + SQLite 스키마 + types + 레이아웃 | ❌ 단일 |
-| **1. 카드 + 에이전트** | Lane A (카드 setup 흐름), Lane B (에이전트 CRUD + UI) | ✅ 2 lane 병렬 |
-| **2. 결제 엔진** | `POST /api/pay` + 정책 함수 + Stripe charge + idempotency | ❌ 단일 (A+B 의존) |
-| **3. MCP + 대시보드** | Lane C (MCP 서버 + 클라이언트 SDK), Lane D (대시보드 + kill switch UI) | ✅ 2 lane 병렬 |
+| **0. Scaffold** | Next.js + Tailwind + SQLite schema + types + layout | ❌ single |
+| **1. Card + Agent** | Lane A (card setup flow), Lane B (agent CRUD + UI) | ✅ 2 lanes |
+| **2. Payment engine** | `POST /api/pay` + policy function + Stripe charge + idempotency | ❌ single (depends on A+B) |
+| **3. MCP + Dashboard** | Lane C (MCP server + client SDK), Lane D (dashboard + kill switch UI) | ✅ 2 lanes |
+
+All four phases are merged on `main`.
 
 ---
 
-## 12. 미해결 결정
+## 12. Open decisions
 
-- **D1.** 제품명/도메인 — `agentwallet` 작업명 그대로
-- **D2.** 머천트 화이트리스트 — MVP-α는 없음. 한도만으로 통제 (v2)
+- **D1.** Product name / domain — `agentwallet` is the working name.
+- **D2.** Merchant whitelist — none in MVP-α. Limits alone are the control. Reconsider in v2.
 
 ---
 
-## 변경 이력
+## Changelog
 
-- **2026-05-20**: SQLite을 Node 26 빌트인 `node:sqlite`로 변경 (native deps 0개).
-- **2026-05-20**: 단순화. 셀프 호스팅 단일 사용자. 3 컴포넌트, 4 phase. Basis Theory/Clerk/Resend/OAuth/익스텐션 제거.
-- **2026-05-20**: 초안.
+- Translate PROJECT.md to English; remove personal info (owner, start date) from repo per privacy policy.
+- Switch SQLite from `better-sqlite3` to Node 26 builtin `node:sqlite` (zero native deps).
+- Simplify to self-hosted single user, 3 components, 4 phases. Drop Basis Theory, Clerk, Resend, OAuth, browser extension.
+- Initial draft.
