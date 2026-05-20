@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+build
+dist
+
+.env
+.env.local
+.env.*.local
+*.log
+
+.DS_Store
+.vscode
+.idea
+
+next-env.d.ts
+*.tsbuildinfo
+
+# AgentWallet local DB lives in $HOME/.agentwallet/ — never in repo
