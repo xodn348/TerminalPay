@@ -13,6 +13,7 @@ const DEFAULT_CHECKOUT_URLS: Record<string, string> = {
 
 export interface PayInput {
   agent: Agent;
+  agent_name?: string; // MCP clientInfo.name or CLI caller label; stored on the payment row
   amount_cents: number;
   merchant: string;
   merchant_url: string | undefined;
@@ -31,6 +32,17 @@ export async function runPay(input: PayInput): Promise<PayResult> {
     .prepare("SELECT * FROM payments WHERE agent_id = ? AND idempotency_key = ?")
     .get(input.agent.id, input.idempotency_key) as unknown as Payment | undefined;
   if (existing) return { ok: true, payment: existing };
+
+  // Allowed-merchants check (settings.allowed_merchants JSON array; null = allow all)
+  const settingsRow = db
+    .prepare("SELECT allowed_merchants FROM settings WHERE id = 1")
+    .get() as unknown as { allowed_merchants: string | null } | undefined;
+  if (settingsRow?.allowed_merchants) {
+    const allowed = JSON.parse(settingsRow.allowed_merchants) as string[];
+    if (!allowed.includes("*") && !allowed.includes(input.merchant)) {
+      return { ok: false, error: "merchant_not_allowed" };
+    }
+  }
 
   // Policy: compute monthly spend for this agent in the current UTC month
   const now = new Date();
@@ -60,11 +72,11 @@ export async function runPay(input: PayInput): Promise<PayResult> {
   const createdAt = Date.now();
   db.prepare(
     `INSERT INTO payments
-       (id, agent_id, amount_cents, merchant, merchant_url, reason,
+       (id, agent_id, agent_name, amount_cents, merchant, merchant_url, reason,
         status, evidence, idempotency_key, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`,
   ).run(
-    id, input.agent.id, input.amount_cents, input.merchant,
+    id, input.agent.id, input.agent_name ?? null, input.amount_cents, input.merchant,
     input.merchant_url ?? null, input.reason, input.idempotency_key, createdAt,
   );
 

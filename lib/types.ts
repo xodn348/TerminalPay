@@ -6,6 +6,7 @@ export interface Settings {
   card_exp: string | null;
   vault_key_id: string | null;
   created_at: number | null;
+  allowed_merchants: string | null; // JSON array e.g. '["console.anthropic.com"]'; null = allow all
 }
 
 export interface Agent {
@@ -21,6 +22,7 @@ export interface Agent {
 export interface Payment {
   id: string;
   agent_id: string;
+  agent_name: string | null; // MCP clientInfo.name or CLI caller label; null if unknown
   amount_cents: number;
   merchant: string;
   merchant_url: string | null;
@@ -28,6 +30,17 @@ export interface Payment {
   status: "pending" | "succeeded" | "failed" | "denied" | "unknown";
   evidence: string | null;
   idempotency_key: string;
+  created_at: number;
+}
+
+export interface Order {
+  id: string;
+  payment_id: string | null;
+  merchant_order_id: string | null;
+  items: string | null;            // JSON array
+  shipping_address: string | null; // JSON object
+  carrier: string | null;
+  tracking_number: string | null;
   created_at: number;
 }
 

@@ -4,6 +4,10 @@ import { createInterface } from "node:readline/promises";
 import { randomUUID } from "node:crypto";
 import { createElement } from "react";
 import { render } from "ink";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { db } from "../lib/db.ts";
 import { generateApiKey, getAgentByApiKey } from "../lib/agent-keys.ts";
 import { encryptCard } from "../lib/vault.ts";
@@ -239,6 +243,93 @@ program
   .action(async () => {
     const { waitUntilExit } = render(createElement(TuiApp));
     await waitUntilExit();
+  });
+
+// ── mcp ────────────────────────────────────────────────────────────────────────
+
+const mcpCmd = program.command("mcp").description("Manage MCP server integration");
+
+mcpCmd
+  .command("install")
+  .description("Write MCP config snippets to detected AI client configs")
+  .option("--key <key>", "API key to embed (prompts if absent and TTY is attached)")
+  .action(async (opts: { key?: string }) => {
+    // Resolve the mcp-server.ts path relative to this file
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const serverPath = join(__dirname, "mcp-server.ts");
+
+    let apiKey = opts.key ?? process.env["TERMPAY_API_KEY"] ?? "";
+    if (!apiKey && process.stdin.isTTY) {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      apiKey = (await rl.question("Termpay API key (from termpay agent add): ")).trim();
+      rl.close();
+    }
+    if (!apiKey) {
+      console.error("No API key. Create one with: termpay agent add <name> --monthly <usd> --per-tx <usd>");
+      process.exit(1);
+    }
+
+    const serverEntry = {
+      command: "node",
+      args: ["--experimental-strip-types", serverPath],
+      env: {
+        TERMPAY_API_KEY: apiKey,
+        // TERMPAY_CARD_CVV must be set by the user in their shell for the session.
+      },
+    };
+
+    type ClientConfig = { name: string; configPath: string };
+    const clients: ClientConfig[] = [
+      {
+        name: "Claude Code",
+        configPath: join(homedir(), ".claude.json"),
+      },
+      {
+        name: "Claude Desktop (macOS)",
+        configPath: join(
+          homedir(),
+          "Library",
+          "Application Support",
+          "Claude",
+          "claude_desktop_config.json",
+        ),
+      },
+      {
+        name: "Cursor",
+        configPath: join(homedir(), ".cursor", "mcp.json"),
+      },
+    ];
+
+    let wrote = 0;
+    for (const client of clients) {
+      const dir = dirname(client.configPath);
+      if (!existsSync(dir)) continue; // client not installed — skip silently
+
+      let config: Record<string, unknown> = {};
+      if (existsSync(client.configPath)) {
+        try {
+          config = JSON.parse(readFileSync(client.configPath, "utf8")) as Record<string, unknown>;
+        } catch {
+          config = {};
+        }
+      }
+
+      const mcpServers = (config["mcpServers"] as Record<string, unknown> | undefined) ?? {};
+      mcpServers["termpay"] = serverEntry;
+      config["mcpServers"] = mcpServers;
+
+      writeFileSync(client.configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+      console.log(`Written: ${client.name}  (${client.configPath})`);
+      wrote++;
+    }
+
+    if (wrote === 0) {
+      console.log("No supported AI clients detected. Manually add the following MCP server entry:");
+      console.log(JSON.stringify({ termpay: serverEntry }, null, 2));
+    } else {
+      console.log(`\nRestart your AI client to activate the termpay MCP server.`);
+      console.log(`Set TERMPAY_CARD_CVV in your shell before starting each session.`);
+    }
   });
 
 program.parse();
