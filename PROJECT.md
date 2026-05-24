@@ -10,7 +10,7 @@ Status: **early version — self-hosted single user, terminal UI**
 
 Let AI agents pay autonomously with the user's credit card — within limits the user controls.
 
-Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink). Agents (Claude Code, Codex, any shell-capable assistant) invoke the same binary with subcommands.
+Distributed as a single Node.js binary that exposes both a CLI and a Model Context Protocol (MCP) server. Humans interact through a terminal UI (Ink) and `termpay setup`. Agents (Claude Code, Codex, Cursor, any MCP-aware client) invoke `termpay-mcp` tools to request payments and monitor orders. For multi-step merchants (Amazon, Etsy, etc.), termpay internally orchestrates Anthropic Computer Use — the agent calls one `purchase` tool, termpay drives the browser end-to-end and fills the card at the checkout moment.
 
 ---
 
@@ -24,50 +24,68 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 
 ## 3. Core user stories
 
-- **US-1.** The user adds a card once through `termpay setup`.
-- **US-2.** The user creates an agent with monthly + per-tx limits and receives an API key (`termpay agent add <name>`).
-- **US-3.** The agent calls `termpay pay --amount 500 --merchant console.anthropic.com --reason "..." --idempotency-key ...` with `TERMPAY_API_KEY` set.
-- **US-4.** The user sees every payment with its reason in `termpay ui` or `termpay payments`.
-- **US-5.** The user can instantly kill any agent (`termpay agent kill <id>` or one keystroke in the TUI).
+- **US-1.** The user adds a card once through `termpay setup` (encrypted via macOS Keychain), then sets monthly + per-tx limits and an allowed-merchants list.
+- **US-2.** The user runs `termpay mcp install` once to register the MCP server with Claude Code, Codex, and Cursor.
+- **US-3 (single-page billing).** The user tells Claude Code "Anthropic 크레딧 $20 충전". Claude calls `termpay.pay({merchant:"console.anthropic.com", amount:20, reason:"top-up", key:"..."})`. termpay runs policy, drives `patchright` against the merchant's billing page, fills card, returns receipt.
+- **US-4 (multi-step purchase).** The user says "Amazon에서 이 URL 사줘". Claude calls `termpay.purchase({intent, merchant:"amazon.com", max_amount:15, reason, key})`. termpay launches local Patchright with the user's stored cookies, drives the checkout via Anthropic Computer Use, intercepts at the payment page to fill the card directly (card never enters the LLM context), reads the order number, returns it. Claude polls `purchase_status(id)` for progress.
+- **US-5 (monitor).** "내가 산 거 보여줘" → Claude calls `termpay.orders()` + Gmail MCP for shipping email augmentation; renders payments + orders + tracking in one view.
+- **US-6 (emergency stop).** `termpay.kill()` or one keystroke in `termpay ui` halts all in-flight purchases and blocks new ones within 1 second.
 
 ---
 
-## 4. Non-goals (explicitly excluded from this version)
+## 4. Non-goals (explicitly excluded from v1)
 
-- ❌ Multi-user / signup / login
-- ❌ Server / cloud component
-- ❌ Email or push HITL — limits + kill switch are the control
+- ❌ Multi-user / signup / login — single user, single card, single machine
+- ❌ Hosted SaaS / cloud component — PCI burden and trust requirement out of scope for solo bootstrap
+- ❌ Email or push HITL — limits + allowed-merchants + kill switch are the only controls
 - ❌ Card issuing / crypto / ACH / multi-currency
-- ❌ OAuth / refresh tokens — plain Bearer API key
-- ❌ Stripe or any payment service provider
-- ❌ Browser extension / GUI desktop app
+- ❌ OAuth / refresh tokens — Bearer API key
+- ❌ Korean PG (Coupang, Naver, Toss, KCP, INICIS) — `휴대폰 본인인증` + bank-app push approval breaks the autonomous model. Deferred to v3+ as a separate track.
+- ❌ Browser extension / GUI desktop app — terminal UI only
+- ❌ New payment protocol — termpay is a router on top of existing rails (Patchright, Computer Use, future Privacy.com / Stripe Issuing / ACP), not a new protocol
 
 ---
 
-## 5. Architecture (one binary)
+## 5. Architecture (three boxes)
 
 ```
-[Claude Code / Codex / any shell]
-            │
-            │  shell out
-            ▼
-┌─────────────────────────────────────────────┐
-│ termpay  (single Node.js binary)        │
-│                                             │
-│   bin/cli.ts          subcommand dispatcher │
-│   bin/tui.tsx         Ink TUI (interactive) │
-│                                             │
-│   lib/policy.ts       limit + status check  │
-│   lib/vault.ts        AES-256-GCM card box  │
-│   lib/agent-keys.ts   API key issue + check │
-│   lib/db.ts           SQLite store          │
-│   lib/checkout.ts     Playwright purchase   │
-│                                             │
-└─────────────────────────────────────────────┘
-            │
-            ├──> SQLite at ~/.termpay/db.sqlite
-            └──> patchright Chromium → merchant.com checkout
+┌─────────────────────────────────────────────────────────────────┐
+│  AGENT      Claude Code · Codex · Cursor · any MCP client       │
+│                       │                                         │
+│                       │  MCP stdio                              │
+│                       ▼                                         │
+│  TERMPAY    Local Node process — single MCP server              │
+│                       │                                         │
+│             ┌─────────┴──────────┐                              │
+│             │  Tools (9 total):  │                              │
+│             │   pay              │  single-page billing         │
+│             │   purchase         │  multi-step (Computer Use)   │
+│             │   purchase_status  │  async progress poll         │
+│             │   request_card     │  external orchestrator hand  │
+│             │   confirm          │  external orchestrator end   │
+│             │   policy           │  limits + budget             │
+│             │   payments         │  history                     │
+│             │   orders           │  shipping (+Gmail MCP)       │
+│             │   kill             │  emergency stop              │
+│             └────────────────────┘                              │
+│                       │                                         │
+│  RAIL                 ▼  router by merchant + amount + risk     │
+│   ├─ patchright            single-page (Anthropic Console etc)  │
+│   ├─ computer_use          Anthropic Computer Use (multi-step)  │
+│   ├─ operator              OpenAI Operator (stub, v1.7)         │
+│   ├─ merchant_api          Vercel / Fly / Cloudflare direct API │
+│   └─ privacy_com           single-use virtual card (v1.7)       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                       │
+                       ├── ~/.termpay/db.sqlite     (state)
+                       ├── ~/.termpay/cookies/      (per-merchant, AES-encrypted)
+                       └── macOS Keychain           (vault key)
 ```
+
+The agent never sees raw card data. For multi-step merchants, the Computer Use LLM
+drives the browser up to the payment page, signals "checkout reached", and termpay
+fills the card directly via Patchright's DOM API — card stays in the termpay process.
 
 ---
 
@@ -144,34 +162,62 @@ CREATE TABLE audit_events (
 
 ---
 
-## 9. Commands
+## 9. Commands and tools
+
+### CLI subcommands (human-facing)
 
 ```
-termpay setup
-termpay ui
+termpay setup                          # one-time card + limits + allowed merchants
+termpay mcp install                    # register with Claude Code / Codex / Cursor
+termpay ui                             # interactive TUI dashboard
 termpay agent add <name> --monthly <usd> --per-tx <usd>
 termpay agent list
 termpay agent kill <id>
-termpay pay --amount <cents> --merchant <host> --reason <text>
-                --idempotency-key <key> [--url <checkout_url>]
+termpay browser login <merchant>       # persist encrypted cookies for multi-step merchants
 termpay payments [--limit 20]
+termpay orders [--limit 20]
+termpay serve --port 7402              # optional HTTP API for non-MCP agents
 ```
 
-`termpay pay` reads `TERMPAY_API_KEY` from the environment. The CVV is supplied either through `TERMPAY_CARD_CVV` (set by the user before invoking the agent for the session) or, in interactive use, prompted on stdin. The CVV is wiped from memory as soon as the merchant returns an authorization decision.
+### MCP tools (agent-facing, 9 total)
+
+| Tool | Inputs | Use when |
+|---|---|---|
+| `pay` | `{merchant, amount, reason, idempotency_key}` | Single-page billing top-up (Anthropic, OpenAI, Vercel, Fly, Cloudflare). Synchronous. |
+| `purchase` | `{intent, merchant, max_amount, reason, idempotency_key}` | Multi-step e-commerce (Amazon, Etsy, Shopify). Asynchronous — returns `purchase_id` immediately. |
+| `purchase_status` | `{purchase_id}` | Poll for progress on a `purchase`. Returns `running` / `awaiting_human` / `succeeded` / `failed`. |
+| `request_card` | `{merchant, amount, reason, idempotency_key}` | External orchestrator (caller drives the browser, asks termpay for a card at checkout). |
+| `confirm` | `{payment_id, order_id, evidence}` | Companion to `request_card` — record outcome. |
+| `policy` | — | Current limits, spend, allowed merchants. |
+| `payments` | `{limit?}` | Recent payments with status and evidence. |
+| `orders` | `{limit?}` | Orders joined with payments + shipping (Gmail MCP augmentation if connected). |
+| `kill` | `{reason?}` | Emergency stop — denies new charges and aborts in-flight `purchase` within 1 s. |
+
+### Environment
+
+- `TERMPAY_API_KEY` — Bearer token for the calling agent (issued by `termpay agent add`)
+- `TERMPAY_CARD_CVV` — CVV for the current session (alternative: stdin prompt)
+- `ANTHROPIC_API_KEY` — required for `purchase` (Computer Use driver). termpay never logs or transmits this beyond Anthropic Messages API calls.
+- `TERMPAY_VAULT_KEY` — hex AES key fallback when macOS Keychain is unavailable (Linux, CI)
+
+CVV is wiped from process state after the merchant returns an authorization decision; the `pay` process lifetime must not exceed 30 seconds.
 
 ---
 
 ## 10. Build phases
 
-| Phase | Work |
-|---|---|
-| **0. Scaffold** | package.json, tsconfig, `lib/policy.ts` + `lib/types.ts` + `lib/agent-keys.ts` ported from the previous version, new `lib/db.ts` schema, `lib/vault.ts` with AES-256-GCM. |
-| **1. CLI + TUI shell** | `termpay setup`, `termpay agent ...`, `termpay ui` with Ink. No real charges yet — checkout step is a stub. |
-| **2. Policy + pay command** | `termpay pay` wires policy, vault decrypt in memory, writes payments row. Still no real charge. |
-| **3. patchright checkout** | `lib/checkout.ts` fills card on real merchant page. Verified live on Anthropic Console billing (`console.anthropic.com`) with a $5 real charge. **This phase is the architecture gate.** |
-| **4. Hardening** | 3DS prompt fallback through the TUI, Stripe Radar mitigation if needed, retry / idempotency edges, ASCII receipt rendering. |
+| Phase | Work | Status |
+|---|---|---|
+| **0. Scaffold** | package.json, tsconfig, `lib/policy.ts` + `lib/types.ts` + `lib/agent-keys.ts`, `lib/db.ts` schema, `lib/vault.ts` AES-256-GCM. | ✅ merged (PR #9, #10) |
+| **1. CLI + TUI shell** | `termpay setup`, `termpay agent ...`, `termpay ui` with Ink. Checkout stub. | ✅ merged (PR #11) |
+| **2. Policy + pay command** | `termpay pay` wires policy, vault decrypt, payments row. | ✅ merged (PR #12) |
+| **3. patchright checkout** | `lib/checkout.ts` fills card on `console.anthropic.com`. **G1 = real $5 charge** verifies the architecture. | ✅ scaffolding merged (PR #13); G1 local verification pending |
+| **1.5. MCP wrapper + 6 tools** | `bin/mcp-server.ts`, `termpay mcp install`, `allowed_merchants` whitelist, `orders` table, `agent_name`. | ✅ merged (PR #18) |
+| **1.6. Computer Use orchestration** | `purchase` + `purchase_status` MCP tools, `lib/drivers/anthropic_computer_use.ts`, `browser_login` + encrypted cookie persistence, async progress reporting. **This unlocks multi-step merchants (Amazon, Etsy).** | 🟡 in progress (issue #19) |
+| **1.7. Plug-in rails** | `lib/drivers/openai_operator.ts` (stub until Operator API public), `lib/rails/privacy.ts` (single-use virtual card for liability isolation), `lib/rails/merchant_api.ts` (Vercel, Fly, Cloudflare direct). | ⬜ planned |
+| **2. Hardening** | 3DS fallback through the TUI, retry / idempotency edges, ASCII receipt rendering, per-merchant adapter library expansion. | ⬜ planned |
 
-See `ROADMAP.md` for validation gates, risk register, and naming.
+See `ROADMAP.md` for validation gates and risk register.
 
 ---
 
@@ -191,15 +237,64 @@ This is a personal-use tool today; the same architecture would survive a payment
 
 See `ROADMAP.md` §5 for the live list. High-impact:
 
-- **Product name.** Resolved as `termpay`; see ROADMAP.md D1. Re-check name availability before any public release.
-- **Merchant strategy.** No whitelist in this version. Reconsider once Playwright reliability data is in.
+- **GitHub repo rename.** `xodn348/agentwallet` → `xodn348/termpay`. Deferred until after G1 passes locally.
+- **Distribution channel.** npm public publish vs Homebrew tap vs both. Decide after Phase 1.6 ships.
+- **OpenAI Operator integration.** API not yet public. Stub interface in 1.7; real implementation when Operator opens to non-Plus users.
+
+## 13. Driver orchestration (Phase 1.6)
+
+The Computer Use driver is internal to termpay, not a separate MCP server. termpay
+holds the user's `ANTHROPIC_API_KEY` and runs the Computer Use loop in its own
+process. This keeps the agent-facing surface to one MCP server while letting termpay
+guarantee that card data never enters the LLM context.
+
+Flow for `purchase`:
+
+```
+Claude Code → termpay.purchase({intent, merchant, max_amount, reason, key})
+              ├── policy.evaluate(merchant, max_amount)  ── deny? return immediately
+              ├── INSERT purchases row (status=running)
+              ├── return {purchase_id, status:"in_progress"}   ← MCP responds fast
+              │
+              └── (background worker)
+                  ├── load encrypted cookies for merchant
+                  ├── launch local Patchright with cookies
+                  ├── call Anthropic Messages API with computer_20241022 tool
+                  │     system prompt: "Drive checkout. When you reach a payment
+                  │     page with card fields, call signal_checkout_reached and
+                  │     stop. Never type the card yourself."
+                  ├── loop: execute returned actions (click/type/screenshot)
+                  ├── on signal_checkout_reached:
+                  │     pause LLM loop
+                  │     decrypt card from vault
+                  │     Patchright.fill(SELECTORS.cardNumber, card.pan)        ← direct DOM
+                  │     Patchright.fill(SELECTORS.cardExpiry, card.exp)
+                  │     Patchright.fill(SELECTORS.cardCvc, env.TERMPAY_CARD_CVV)
+                  │     wipe CVV
+                  ├── resume LLM loop for "Place Order" click and confirmation
+                  ├── extract order number from confirmation page text
+                  └── UPDATE purchases row (status=succeeded, order_id, evidence)
+
+Claude polls:    termpay.purchase_status({purchase_id})
+                  → {status, progress, payment_id?, order_id?, evidence?}
+```
+
+Stop conditions for the background worker:
+
+- Max amount exceeded (LLM signals or termpay detects from cart total)
+- 5-minute hard timeout
+- Computer Use API returns "impossible" / "needs human"
+- 3DS frame detected → status `awaiting_human` (TUI prompt for OTP)
+- `termpay kill` invoked → AbortController fires, browser closes within 1 s
 
 ---
 
 ## Changelog
 
-- Pivot to terminal UI: drop Next.js + Chrome extension + MCP. Single CLI (`termpay`) with an interactive Ink TUI and headless subcommands. Playwright drives merchant checkout. CVV is never persisted.
+- **2026-05-24** — Architecture lock for Phase 1.6: termpay is the single MCP entry point. The `purchase` tool internally orchestrates Anthropic Computer Use for multi-step merchants; card is filled by termpay's Patchright at the checkout moment so the LLM never sees it. Cookies persisted encrypted per merchant. Async pattern (`purchase_id` + `purchase_status` polling) avoids MCP timeout. 9 MCP tools total. Korean PG explicitly excluded until v3+.
+- **2026-05-24** — Phase 1.5 merged: MCP server with 6 tools (`pay`, `policy`, `payments`, `orders`, `kill`, `record_order`), `termpay mcp install` for Claude Code / Codex / Cursor, `allowed_merchants` whitelist, `orders` table, `agent_name` on payments.
+- **2026-05-24** — Phase 0-3 scaffolding merged: vault, db, types, CLI, TUI shell, pay command with policy + vault decrypt, Patchright checkout for `console.anthropic.com`. G1 (real $5 charge) verification pending on the user's local Mac.
+- **2026-05-21** — Pivot to terminal UI: drop Next.js + Chrome extension + Stripe. Single Node.js binary with Ink TUI and Patchright (stealth Playwright fork) for merchant checkout. CVV never persists; `pay` process lifetime ≤ 30 s.
 - Translate PROJECT.md to English; remove personal info from repo.
 - Switch SQLite from `better-sqlite3` to Node 22.5+ builtin `node:sqlite`.
-- Simplify to self-hosted single user, 3 components, 4 phases.
 - Initial draft.
