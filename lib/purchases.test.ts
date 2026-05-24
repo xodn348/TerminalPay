@@ -16,7 +16,19 @@ const {
   listPurchasesForAgent,
   updatePurchase,
 } = await import("./purchases.ts");
-const { runMockDriver } = await import("./drivers/mock.ts");
+const { MockDriver } = await import("./drivers/mock.ts");
+
+function runMock(purchase_id: string): void {
+  new MockDriver().run({
+    purchase_id,
+    agent_id: "",
+    intent: "",
+    merchant: "",
+    max_amount_cents: 0,
+    reason: "",
+    signal: new AbortController().signal,
+  });
+}
 
 function seedAgent(): string {
   const id = randomUUID();
@@ -108,13 +120,13 @@ test("updatePurchase patches only provided fields", () => {
   assert.equal(updated?.intent, "x"); // untouched
 });
 
-test("runMockDriver moves purchase to succeeded with evidence", async () => {
+test("MockDriver moves purchase to succeeded with evidence", async () => {
   const agent_id = seedAgent();
   const { purchase } = createPurchase({
     agent_id, agent_name: null, intent: "x", merchant: "amazon.com",
     max_amount_cents: 100, reason: "r", idempotency_key: `k-${randomUUID()}`, driver: "mock",
   });
-  runMockDriver(purchase.id);
+  runMock(purchase.id);
   await new Promise((r) => setTimeout(r, 3500));
   const final = getPurchase(purchase.id);
   assert.equal(final?.status, "succeeded");

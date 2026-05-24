@@ -9,7 +9,7 @@ import { getAgentByApiKey } from "../lib/agent-keys.ts";
 import { dollarsToCents, formatUSD } from "../lib/money.ts";
 import { recordOrder, listOrders } from "../lib/orders.ts";
 import { createPurchase, getPurchaseForAgent } from "../lib/purchases.ts";
-import { runMockDriver } from "../lib/drivers/mock.ts";
+import { selectDriver } from "../lib/drivers/registry.ts";
 import type { Agent, Payment } from "../lib/types.ts";
 
 const server = new McpServer(
@@ -156,6 +156,7 @@ server.registerTool(
     const agent = requireAgent();
     const max_amount_cents = dollarsToCents(args.max_amount);
 
+    const driver = selectDriver();
     const { purchase, created } = createPurchase({
       agent_id: agent.id,
       agent_name: mcpClientName,
@@ -164,10 +165,20 @@ server.registerTool(
       max_amount_cents,
       reason: args.reason,
       idempotency_key: args.idempotency_key,
-      driver: "mock", // PR-D switches this based on env / availability
+      driver: driver.name,
     });
 
-    if (created) runMockDriver(purchase.id);
+    if (created) {
+      driver.run({
+        purchase_id: purchase.id,
+        agent_id: agent.id,
+        intent: args.intent,
+        merchant: args.merchant,
+        max_amount_cents,
+        reason: args.reason,
+        signal: new AbortController().signal,
+      });
+    }
 
     return {
       content: [
