@@ -33,6 +33,6 @@ export function recordOrder(input: RecordOrderInput): Order {
 
 export function listOrders(limit: number): Order[] {
   return db
-    .prepare("SELECT * FROM orders ORDER BY created_at DESC LIMIT ?")
+    .prepare("SELECT * FROM orders ORDER BY created_at DESC, rowid DESC LIMIT ?")
     .all(limit) as unknown as Order[];
 }

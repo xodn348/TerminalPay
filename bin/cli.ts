@@ -14,7 +14,6 @@ import { encryptCard } from "../lib/vault.ts";
 import { dollarsToCents, formatUSD } from "../lib/money.ts";
 import { runPay } from "../lib/pay.ts";
 import type { Agent, Payment } from "../lib/types.ts";
-import { TuiApp } from "./tui.tsx";
 
 const program = new Command();
 program
@@ -241,6 +240,7 @@ program
   .command("ui")
   .description("Launch the interactive terminal UI")
   .action(async () => {
+    const { TuiApp } = await import("./tui.tsx");
     const { waitUntilExit } = render(createElement(TuiApp));
     await waitUntilExit();
   });
