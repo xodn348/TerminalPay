@@ -25,7 +25,7 @@ export interface Payment {
   merchant: string;
   merchant_url: string | null;
   reason: string;
-  status: "succeeded" | "failed" | "denied";
+  status: "pending" | "succeeded" | "failed" | "denied" | "unknown";
   evidence: string | null;
   idempotency_key: string;
   created_at: number;

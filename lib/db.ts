@@ -36,7 +36,7 @@ const SCHEMA = `
     merchant TEXT NOT NULL,
     merchant_url TEXT,
     reason TEXT NOT NULL,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL,  -- 'pending' | 'succeeded' | 'failed' | 'denied' | 'unknown'
     evidence TEXT,
     idempotency_key TEXT NOT NULL,
     created_at INTEGER NOT NULL,
@@ -45,6 +45,15 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_payments_agent_created
     ON payments(agent_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS audit_events (
+    id TEXT PRIMARY KEY,
+    ts INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    agent_id TEXT,
+    payment_id TEXT,
+    payload_json TEXT
+  );
 `;
 
 function createDb(): DatabaseSync {
