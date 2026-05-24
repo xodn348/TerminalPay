@@ -21,7 +21,8 @@ const SCHEMA = `
     card_brand TEXT,
     card_exp TEXT,
     vault_key_id TEXT,
-    created_at INTEGER
+    created_at INTEGER,
+    allowed_merchants TEXT
   );
 
   CREATE TABLE IF NOT EXISTS agents (
@@ -37,6 +38,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS payments (
     id TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL REFERENCES agents(id),
+    agent_name TEXT,
     amount_cents INTEGER NOT NULL,
     merchant TEXT NOT NULL,
     merchant_url TEXT,
@@ -59,13 +61,40 @@ const SCHEMA = `
     payment_id TEXT,
     payload_json TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    payment_id TEXT REFERENCES payments(id),
+    merchant_order_id TEXT,
+    items TEXT,
+    shipping_address TEXT,
+    carrier TEXT,
+    tracking_number TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_orders_payment_id
+    ON orders(payment_id);
 `;
+
+function runMigrations(instance: DatabaseSync): void {
+  // Add columns that may not exist on databases created before this schema version.
+  // SQLite does not support IF NOT EXISTS in ALTER TABLE, so we catch the error.
+  const migrations = [
+    "ALTER TABLE payments ADD COLUMN agent_name TEXT",
+    "ALTER TABLE settings ADD COLUMN allowed_merchants TEXT",
+  ];
+  for (const sql of migrations) {
+    try { instance.exec(sql); } catch { /* column already exists — safe to ignore */ }
+  }
+}
 
 function createDb(): DatabaseSync {
   const instance = new DatabaseSync(dbPath);
   instance.exec("PRAGMA journal_mode = WAL");
   instance.exec("PRAGMA foreign_keys = ON");
   instance.exec(SCHEMA);
+  runMigrations(instance);
   return instance;
 }
 
