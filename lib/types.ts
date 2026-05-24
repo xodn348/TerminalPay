@@ -1,9 +1,10 @@
 export interface Settings {
   id: 1;
-  stripe_customer_id: string | null;
-  stripe_pm_id: string | null;
+  encrypted_card: Uint8Array | null;
   card_last4: string | null;
   card_brand: string | null;
+  card_exp: string | null;
+  vault_key_id: string | null;
   created_at: number | null;
 }
 
@@ -22,11 +23,24 @@ export interface Payment {
   agent_id: string;
   amount_cents: number;
   merchant: string;
+  merchant_url: string | null;
   reason: string;
   status: "succeeded" | "failed" | "denied";
-  stripe_pi_id: string | null;
+  evidence: string | null;
   idempotency_key: string;
   created_at: number;
+}
+
+export interface CardPlain {
+  pan: string;
+  exp_month: number;
+  exp_year: number;
+  name: string;
+}
+
+export interface ChargeOutcome {
+  status: "succeeded" | "failed" | "requires_human";
+  evidence: string | null;
 }
 
 export type PolicyDecision =

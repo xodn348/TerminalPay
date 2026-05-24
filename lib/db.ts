@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const dir = join(homedir(), ".agentwallet");
+const dir = join(homedir(), ".termpay");
 if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
 const dbPath = join(dir, "db.sqlite");
@@ -11,10 +11,11 @@ const dbPath = join(dir, "db.sqlite");
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    stripe_customer_id TEXT,
-    stripe_pm_id TEXT,
+    encrypted_card BLOB,
     card_last4 TEXT,
     card_brand TEXT,
+    card_exp TEXT,
+    vault_key_id TEXT,
     created_at INTEGER
   );
 
@@ -33,9 +34,10 @@ const SCHEMA = `
     agent_id TEXT NOT NULL REFERENCES agents(id),
     amount_cents INTEGER NOT NULL,
     merchant TEXT NOT NULL,
+    merchant_url TEXT,
     reason TEXT NOT NULL,
     status TEXT NOT NULL,
-    stripe_pi_id TEXT,
+    evidence TEXT,
     idempotency_key TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     UNIQUE (agent_id, idempotency_key)
@@ -45,19 +47,12 @@ const SCHEMA = `
     ON payments(agent_id, created_at);
 `;
 
-declare global {
-  // Prevents multiple instances across Next.js HMR reloads in dev.
-  // eslint-disable-next-line no-var
-  var __agentwallet_db: DatabaseSync | undefined;
-}
-
 function createDb(): DatabaseSync {
   const instance = new DatabaseSync(dbPath);
   instance.exec("PRAGMA journal_mode = WAL");
   instance.exec("PRAGMA foreign_keys = ON");
   instance.exec(SCHEMA);
-  globalThis.__agentwallet_db = instance;
   return instance;
 }
 
-export const db: DatabaseSync = globalThis.__agentwallet_db ?? createDb();
+export const db: DatabaseSync = createDb();

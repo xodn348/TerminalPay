@@ -1,4 +1,4 @@
-# AgentWallet — PROJECT.md
+# Termpay — PROJECT.md
 
 > Single source of truth. If the code disagrees with this document, the code is wrong.
 
@@ -17,18 +17,18 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 ## 2. Personas
 
 - **User** — registers their card once and grants spending authority to their own agents through the terminal UI.
-- **Agent** — calls `agentwallet pay ...` with its API key.
-- **Merchant** — receives a normal card charge through a headless browser; unaware of AgentWallet's existence.
+- **Agent** — calls `termpay pay ...` with its API key.
+- **Merchant** — receives a normal card charge through a headless browser; unaware of Termpay's existence.
 
 ---
 
 ## 3. Core user stories
 
-- **US-1.** The user adds a card once through `agentwallet setup`.
-- **US-2.** The user creates an agent with monthly + per-tx limits and receives an API key (`agentwallet agent add <name>`).
-- **US-3.** The agent calls `agentwallet pay --amount 500 --merchant openai.com --reason "..." --idempotency-key ...` with `AGENTWALLET_API_KEY` set.
-- **US-4.** The user sees every payment with its reason in `agentwallet ui` or `agentwallet payments`.
-- **US-5.** The user can instantly kill any agent (`agentwallet agent kill <id>` or one keystroke in the TUI).
+- **US-1.** The user adds a card once through `termpay setup`.
+- **US-2.** The user creates an agent with monthly + per-tx limits and receives an API key (`termpay agent add <name>`).
+- **US-3.** The agent calls `termpay pay --amount 500 --merchant openai.com --reason "..." --idempotency-key ...` with `TERMPAY_API_KEY` set.
+- **US-4.** The user sees every payment with its reason in `termpay ui` or `termpay payments`.
+- **US-5.** The user can instantly kill any agent (`termpay agent kill <id>` or one keystroke in the TUI).
 
 ---
 
@@ -52,7 +52,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
             │  shell out
             ▼
 ┌─────────────────────────────────────────────┐
-│ agentwallet  (single Node.js binary)        │
+│ termpay  (single Node.js binary)        │
 │                                             │
 │   bin/cli.ts          subcommand dispatcher │
 │   bin/tui.tsx         Ink TUI (interactive) │
@@ -65,7 +65,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 │                                             │
 └─────────────────────────────────────────────┘
             │
-            ├──> SQLite at ~/.agentwallet/db.sqlite
+            ├──> SQLite at ~/.termpay/db.sqlite
             └──> Playwright Chromium → merchant.com checkout
 ```
 
@@ -78,7 +78,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 | Runtime | Node.js 22.5+ (uses `node:sqlite` builtin) |
 | CLI parsing | `commander` |
 | Terminal UI | `ink` + `react` |
-| DB | SQLite via `node:sqlite` at `~/.agentwallet/db.sqlite` |
+| DB | SQLite via `node:sqlite` at `~/.termpay/db.sqlite` |
 | Vault | `node:crypto` AES-256-GCM, key held in the OS keychain |
 | Checkout | `playwright` headless Chromium |
 | Language | TypeScript, run via `tsx` (no build step required) |
@@ -138,17 +138,17 @@ CREATE TABLE payments (
 ## 9. Commands
 
 ```
-agentwallet setup
-agentwallet ui
-agentwallet agent add <name> --monthly <usd> --per-tx <usd>
-agentwallet agent list
-agentwallet agent kill <id>
-agentwallet pay --amount <cents> --merchant <host> --reason <text>
+termpay setup
+termpay ui
+termpay agent add <name> --monthly <usd> --per-tx <usd>
+termpay agent list
+termpay agent kill <id>
+termpay pay --amount <cents> --merchant <host> --reason <text>
                 --idempotency-key <key> [--url <checkout_url>]
-agentwallet payments [--limit 20]
+termpay payments [--limit 20]
 ```
 
-`agentwallet pay` reads `AGENTWALLET_API_KEY` from the environment. The CVV is supplied either through `AGENTWALLET_CARD_CVV` (set by the user before invoking the agent for the session) or, in interactive use, prompted on stdin. The CVV is wiped from memory as soon as the merchant returns an authorization decision.
+`termpay pay` reads `TERMPAY_API_KEY` from the environment. The CVV is supplied either through `TERMPAY_CARD_CVV` (set by the user before invoking the agent for the session) or, in interactive use, prompted on stdin. The CVV is wiped from memory as soon as the merchant returns an authorization decision.
 
 ---
 
@@ -157,8 +157,8 @@ agentwallet payments [--limit 20]
 | Phase | Work |
 |---|---|
 | **0. Scaffold** | package.json, tsconfig, `lib/policy.ts` + `lib/types.ts` + `lib/agent-keys.ts` ported from the previous version, new `lib/db.ts` schema, `lib/vault.ts` with AES-256-GCM. |
-| **1. CLI + TUI shell** | `agentwallet setup`, `agentwallet agent ...`, `agentwallet ui` with Ink. No real charges yet — checkout step is a stub. |
-| **2. Policy + pay command** | `agentwallet pay` wires policy, vault decrypt in memory, writes payments row. Still no real charge. |
+| **1. CLI + TUI shell** | `termpay setup`, `termpay agent ...`, `termpay ui` with Ink. No real charges yet — checkout step is a stub. |
+| **2. Policy + pay command** | `termpay pay` wires policy, vault decrypt in memory, writes payments row. Still no real charge. |
 | **3. Playwright checkout** | `lib/checkout.ts` fills card on real merchant page. Verified live on OpenAI billing with a $5 real charge. **This phase is the architecture gate.** |
 | **4. Hardening** | 3DS prompt fallback through the TUI, Stripe Radar mitigation if needed, retry / idempotency edges, ASCII receipt rendering. |
 
@@ -182,14 +182,14 @@ This is a personal-use tool today; the same architecture would survive a payment
 
 See `ROADMAP.md` §5 for the live list. High-impact:
 
-- **Product name.** `agentwallet.ai` already exists as an unrelated paid product. A new public name is needed before any release.
+- **Product name.** Resolved as `termpay`; see ROADMAP.md D1. Re-check name availability before any public release.
 - **Merchant strategy.** No whitelist in this version. Reconsider once Playwright reliability data is in.
 
 ---
 
 ## Changelog
 
-- Pivot to terminal UI: drop Next.js + Chrome extension + MCP. Single CLI (`agentwallet`) with an interactive Ink TUI and headless subcommands. Playwright drives merchant checkout. CVV is never persisted.
+- Pivot to terminal UI: drop Next.js + Chrome extension + MCP. Single CLI (`termpay`) with an interactive Ink TUI and headless subcommands. Playwright drives merchant checkout. CVV is never persisted.
 - Translate PROJECT.md to English; remove personal info from repo.
 - Switch SQLite from `better-sqlite3` to Node 22.5+ builtin `node:sqlite`.
 - Simplify to self-hosted single user, 3 components, 4 phases.

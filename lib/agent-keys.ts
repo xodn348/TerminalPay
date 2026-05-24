@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { db } from "@/lib/db";
-import type { Agent } from "@/lib/types";
+import { db } from "./db.ts";
+import type { Agent } from "./types.ts";
 
 /**
  * A freshly generated agent API key.
