@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db.ts";
 import { evaluate } from "./policy.ts";
 import { LocalCardSource } from "./card_source.ts";
+import { chargeCard } from "./checkout.ts";
+import { CHECKOUT_URL } from "./merchants/anthropic.ts";
 import type { Agent, Payment } from "./types.ts";
+
+// Default checkout URLs by merchant hostname
+const DEFAULT_CHECKOUT_URLS: Record<string, string> = {
+  "console.anthropic.com": CHECKOUT_URL,
+};
 
 export interface PayInput {
   agent: Agent;
@@ -61,12 +68,50 @@ export async function runPay(input: PayInput): Promise<PayResult> {
     input.merchant_url ?? null, input.reason, input.idempotency_key, createdAt,
   );
 
-  // Stub checkout — Phase 3 replaces with lib/checkout.ts chargeCard()
-  const status: Payment["status"] = "succeeded";
-  const evidence = "STUB";
+  // Resolve checkout URL
+  const checkoutUrl =
+    input.merchant_url ??
+    DEFAULT_CHECKOUT_URLS[input.merchant] ??
+    `https://${input.merchant}`;
+
+  // Set CVV in env for chargeCard; restore/wipe after charge (G5)
+  const prevCvv = process.env["TERMPAY_CARD_CVV"];
+  process.env["TERMPAY_CARD_CVV"] = input.cvv;
+
+  const controller = new AbortController();
+  // 29 s hard timeout so pay process lifetime stays ≤ 30 s (G5)
+  const timer = setTimeout(() => controller.abort(), 29_000);
+
+  let chargeStatus: Payment["status"] = "unknown";
+  let chargeEvidence: string | null = null;
+
+  try {
+    const outcome = await chargeCard(
+      await source.ensureCard(),
+      checkoutUrl,
+      input.amount_cents,
+      controller.signal,
+    );
+    chargeStatus =
+      outcome.status === "succeeded" ? "succeeded" :
+      outcome.status === "failed"    ? "failed" :
+      "unknown"; // requires_human → unknown until Phase 4 3DS TUI
+    chargeEvidence = outcome.evidence;
+  } catch (err) {
+    chargeStatus = "unknown";
+    chargeEvidence = err instanceof Error ? err.message.slice(0, 200) : "error";
+  } finally {
+    clearTimeout(timer);
+    // Wipe CVV from env (G5: no CVV in process state after pay exits)
+    if (prevCvv !== undefined) {
+      process.env["TERMPAY_CARD_CVV"] = prevCvv;
+    } else {
+      delete process.env["TERMPAY_CARD_CVV"];
+    }
+  }
 
   db.prepare("UPDATE payments SET status = ?, evidence = ? WHERE id = ?")
-    .run(status, evidence, id);
+    .run(chargeStatus, chargeEvidence, id);
 
   const payment = db
     .prepare("SELECT * FROM payments WHERE id = ?")

@@ -10,6 +10,7 @@ import type { Agent, Payment } from "./types.ts";
 const testDbPath = join(tmpdir(), `termpay-test-${randomBytes(4).toString("hex")}.sqlite`);
 process.env["TERMPAY_DB_PATH"] = testDbPath;
 process.env["TERMPAY_VAULT_KEY"] = randomBytes(32).toString("hex");
+process.env["TERMPAY_CHECKOUT_MOCK"] = "1";
 
 // Dynamic imports so env vars above apply on first load
 const { runPay } = await import("./pay.ts");
@@ -109,7 +110,7 @@ test("pay: inserts pending then updates to succeeded (stub)", async () => {
   assert.ok(r.ok);
   if (r.ok) {
     assert.equal(r.payment.status, "succeeded");
-    assert.equal(r.payment.evidence, "STUB");
+    assert.equal(r.payment.evidence, "MOCK"); // TERMPAY_CHECKOUT_MOCK=1 returns "MOCK"
     assert.equal(r.payment.merchant, "console.anthropic.com");
   }
 });
