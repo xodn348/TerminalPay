@@ -8,6 +8,7 @@ import { db } from "../lib/db.ts";
 import { generateApiKey, getAgentByApiKey } from "../lib/agent-keys.ts";
 import { encryptCard } from "../lib/vault.ts";
 import { dollarsToCents, formatUSD } from "../lib/money.ts";
+import { runPay } from "../lib/pay.ts";
 import type { Agent, Payment } from "../lib/types.ts";
 import { TuiApp } from "./tui.tsx";
 
@@ -127,14 +128,14 @@ agentCmd
 
 program
   .command("pay")
-  .description("Submit a payment (Phase 1: stub checkout)")
+  .description("Submit a payment request (checkout stub; Phase 3 wires real browser)")
   .requiredOption("--amount <cents>", "Amount in cents")
   .requiredOption("--merchant <host>", "Merchant hostname")
   .requiredOption("--reason <text>", "Reason for this payment")
   .requiredOption("--idempotency-key <key>", "Idempotency key")
   .option("--url <url>", "Exact checkout URL")
   .action(
-    (opts: {
+    async (opts: {
       amount: string;
       merchant: string;
       reason: string;
@@ -148,34 +149,41 @@ program
         process.exit(1);
       }
 
-      // Idempotency: return original row on duplicate key
-      const existing = db
-        .prepare("SELECT * FROM payments WHERE agent_id = ? AND idempotency_key = ?")
-        .get(agent.id, opts.idempotencyKey) as unknown as Payment | undefined;
-      if (existing) {
-        process.stdout.write(JSON.stringify(existing) + "\n");
-        return;
-      }
-
       const amount_cents = parseInt(opts.amount, 10);
       if (isNaN(amount_cents) || amount_cents <= 0) {
         process.stderr.write(JSON.stringify({ error: "invalid_amount" }) + "\n");
         process.exit(1);
       }
 
-      const id = randomUUID();
-      const now = Date.now();
-      db.prepare(
-        `INSERT INTO payments
-           (id, agent_id, amount_cents, merchant, merchant_url, reason,
-            status, evidence, idempotency_key, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'succeeded', 'STUB', ?, ?)`,
-      ).run(id, agent.id, amount_cents, opts.merchant, opts.url ?? null, opts.reason, opts.idempotencyKey, now);
+      // CVV: env var first, then interactive prompt on TTY
+      let cvv = process.env["TERMPAY_CARD_CVV"] ?? "";
+      if (!cvv && process.stdin.isTTY) {
+        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        cvv = await rl.question("Card CVV: ");
+        rl.close();
+      }
+      if (!cvv) {
+        process.stderr.write(
+          JSON.stringify({ error: "cvv_required: set TERMPAY_CARD_CVV or run interactively" }) + "\n",
+        );
+        process.exit(1);
+      }
 
-      const row = db
-        .prepare("SELECT * FROM payments WHERE id = ?")
-        .get(id) as unknown as Payment;
-      process.stdout.write(JSON.stringify(row) + "\n");
+      const result = await runPay({
+        agent,
+        amount_cents,
+        merchant: opts.merchant,
+        merchant_url: opts.url,
+        reason: opts.reason,
+        idempotency_key: opts.idempotencyKey,
+        cvv,
+      });
+
+      if (!result.ok) {
+        process.stderr.write(JSON.stringify({ error: result.error }) + "\n");
+        process.exit(1);
+      }
+      process.stdout.write(JSON.stringify(result.payment) + "\n");
     },
   );
 

@@ -3,10 +3,15 @@ import { homedir } from "node:os";
 import { mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const dir = join(homedir(), ".termpay");
-if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+function resolveDbPath(): string {
+  const override = process.env["TERMPAY_DB_PATH"];
+  if (override) return override;
+  const dir = join(homedir(), ".termpay");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, "db.sqlite");
+}
 
-const dbPath = join(dir, "db.sqlite");
+const dbPath = resolveDbPath();
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS settings (
