@@ -8,19 +8,14 @@ const KEY_LEN = 32;
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
-/**
- * Get the AES-256-GCM key for the vault, creating it on first use.
- *
- * macOS only: backed by the system Keychain via `security`. The key is 32
- * random bytes encoded as hex. Returns the raw 32-byte key.
- *
- * @returns 32-byte Buffer holding the vault key.
- * @throws if `security` fails for any reason other than "item not found".
- *
- * @example
- *   const key = getOrCreateKey();
- */
+// Returns the 32-byte AES-256-GCM vault key.
+// Headless envs: set TERMPAY_VAULT_KEY to a 64-char hex string.
+// macOS: backed by the system Keychain via `security`.
 export function getOrCreateKey(): Buffer {
+  const envKey = process.env["TERMPAY_VAULT_KEY"];
+  if (envKey) {
+    return Buffer.from(envKey, "hex");
+  }
   try {
     const hex = execFileSync(
       "security",
@@ -44,14 +39,8 @@ export function getOrCreateKey(): Buffer {
   }
 }
 
-/**
- * Encrypt a card with AES-256-GCM.
- *
- * Output layout: IV (12 bytes) || ciphertext || tag (16 bytes).
- *
- * @param plain - The card to encrypt. CVV is NEVER part of CardPlain.
- * @returns Encrypted blob suitable for `settings.encrypted_card`.
- */
+// Encrypt a CardPlain with AES-256-GCM.
+// Output layout: IV (12 bytes) || ciphertext || GCM tag (16 bytes).
 export function encryptCard(plain: CardPlain, key?: Buffer): Uint8Array {
   const k = key ?? getOrCreateKey();
   const iv = randomBytes(IV_LEN);
@@ -62,9 +51,7 @@ export function encryptCard(plain: CardPlain, key?: Buffer): Uint8Array {
   return new Uint8Array(Buffer.concat([iv, enc, tag]));
 }
 
-/**
- * Decrypt a card blob produced by {@link encryptCard}.
- */
+// Decrypt a blob produced by encryptCard.
 export function decryptCard(blob: Uint8Array, key?: Buffer): CardPlain {
   const k = key ?? getOrCreateKey();
   const buf = Buffer.from(blob);

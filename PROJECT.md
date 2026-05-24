@@ -26,7 +26,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 
 - **US-1.** The user adds a card once through `termpay setup`.
 - **US-2.** The user creates an agent with monthly + per-tx limits and receives an API key (`termpay agent add <name>`).
-- **US-3.** The agent calls `termpay pay --amount 500 --merchant openai.com --reason "..." --idempotency-key ...` with `TERMPAY_API_KEY` set.
+- **US-3.** The agent calls `termpay pay --amount 500 --merchant console.anthropic.com --reason "..." --idempotency-key ...` with `TERMPAY_API_KEY` set.
 - **US-4.** The user sees every payment with its reason in `termpay ui` or `termpay payments`.
 - **US-5.** The user can instantly kill any agent (`termpay agent kill <id>` or one keystroke in the TUI).
 
@@ -66,7 +66,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 └─────────────────────────────────────────────┘
             │
             ├──> SQLite at ~/.termpay/db.sqlite
-            └──> Playwright Chromium → merchant.com checkout
+            └──> patchright Chromium → merchant.com checkout
 ```
 
 ---
@@ -80,7 +80,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 | Terminal UI | `ink` + `react` |
 | DB | SQLite via `node:sqlite` at `~/.termpay/db.sqlite` |
 | Vault | `node:crypto` AES-256-GCM, key held in the OS keychain |
-| Checkout | `playwright` headless Chromium |
+| Checkout | `patchright` headless Chromium (stealth Playwright fork) |
 | Language | TypeScript, run via `tsx` (no build step required) |
 | Package manager | `pnpm` |
 
@@ -90,7 +90,7 @@ Distributed as a single Node.js CLI. Humans interact through a terminal UI (Ink)
 
 1. **User has the last word** — kill switch effective within one second; the policy check that blocks a killed agent must run before any network call to a merchant.
 2. **Every payment carries a `reason`** — requests without one are rejected at the CLI parser, before policy.
-3. **CVV never persists** — the encrypted vault holds only PAN, expiry, and cardholder name. CVV is supplied per charge from an environment variable or an interactive prompt and is wiped from memory after the merchant returns an authorization decision. (See §11.)
+3. **CVV never persists** — the encrypted vault holds only PAN, expiry, and cardholder name. CVV is supplied per charge from an environment variable or an interactive prompt. No CVV string may appear in a process core dump after `pay` exits; the `pay` process lifetime must not exceed 30 seconds. (See §11.)
 4. **PROJECT.md is the truth** — new features land in this file before the code.
 
 ---
@@ -125,11 +125,20 @@ CREATE TABLE payments (
   merchant TEXT NOT NULL,           -- e.g. "openai.com"
   merchant_url TEXT,                -- exact checkout URL used
   reason TEXT NOT NULL,
-  status TEXT NOT NULL,             -- 'succeeded' | 'failed' | 'denied'
+  status TEXT NOT NULL,             -- 'pending' | 'succeeded' | 'failed' | 'denied' | 'unknown'
   evidence TEXT,                    -- receipt text, order id, or screenshot path
   idempotency_key TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   UNIQUE (agent_id, idempotency_key)
+);
+
+CREATE TABLE audit_events (
+  id TEXT PRIMARY KEY,
+  ts INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  agent_id TEXT,
+  payment_id TEXT,
+  payload_json TEXT
 );
 ```
 
@@ -159,7 +168,7 @@ termpay payments [--limit 20]
 | **0. Scaffold** | package.json, tsconfig, `lib/policy.ts` + `lib/types.ts` + `lib/agent-keys.ts` ported from the previous version, new `lib/db.ts` schema, `lib/vault.ts` with AES-256-GCM. |
 | **1. CLI + TUI shell** | `termpay setup`, `termpay agent ...`, `termpay ui` with Ink. No real charges yet — checkout step is a stub. |
 | **2. Policy + pay command** | `termpay pay` wires policy, vault decrypt in memory, writes payments row. Still no real charge. |
-| **3. Playwright checkout** | `lib/checkout.ts` fills card on real merchant page. Verified live on OpenAI billing with a $5 real charge. **This phase is the architecture gate.** |
+| **3. patchright checkout** | `lib/checkout.ts` fills card on real merchant page. Verified live on Anthropic Console billing (`console.anthropic.com`) with a $5 real charge. **This phase is the architecture gate.** |
 | **4. Hardening** | 3DS prompt fallback through the TUI, Stripe Radar mitigation if needed, retry / idempotency edges, ASCII receipt rendering. |
 
 See `ROADMAP.md` for validation gates, risk register, and naming.

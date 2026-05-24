@@ -13,9 +13,9 @@ The first version of Termpay was scoped as a Next.js dashboard plus a Chrome ext
 | Distribution | Chrome Web Store + Next.js daemon | `pnpm install -g termpay` |
 | Human UI | React in the browser | Ink terminal UI |
 | Agent interface | MCP stdio server | Plain shell subcommands |
-| Card delivery | Stripe Elements iframe inside a content script | Headless Playwright fills the merchant page directly |
+| Card delivery | Stripe Elements iframe inside a content script | Headless patchright fills the merchant page directly |
 | CVV storage | Encrypted at rest (planned) | **Never persisted** — captured per charge, wiped after |
-| Critical fragility | Stripe iframe + Native Messaging host collision | Headless-browser bot detection |
+| Critical fragility | Stripe iframe + Native Messaging host collision | Headless-browser bot detection (patchright mitigates) |
 
 The pivot trades one fragility for another, but the new one is testable in a day and the deployment story is dramatically simpler (one `npm` package, no store reviews, no IPC).
 
@@ -26,7 +26,7 @@ The pivot trades one fragility for another, but the new one is testable in a day
 Each phase ends with a single concrete artifact the user can run and inspect.
 
 ### Phase 0 — Scaffold (1 day)
-- `package.json`: `commander`, `ink`, `react`, `playwright`, `zod`, `tsx`, `typescript`.
+- `package.json`: `commander`, `ink`, `react`, `patchright`, `zod`, `tsx`, `typescript`.
 - `tsconfig.json` for Node 22 ESM.
 - Keep from previous version: `lib/policy.ts`, `lib/types.ts`, `lib/agent-keys.ts`.
 - Replace: `lib/db.ts` with the new schema in PROJECT.md §8.
@@ -51,9 +51,9 @@ Each phase ends with a single concrete artifact the user can run and inspect.
 
 ### Phase 3 — Playwright checkout (the gate, 2–4 days)
 - `lib/checkout.ts` exposes `chargeCard(card: CardPlain, url: string, amount_cents: number): Promise<ChargeOutcome>`.
-- First merchant: OpenAI billing top-up page (`platform.openai.com/account/billing`).
-- Real test: $5 charge, real card, Stripe Radar live.
-- 3DS handling: if Playwright detects a challenge frame, bubble it up through the TUI so the user can complete the OTP. Headless agents see `status='requires_human'`.
+- First merchant: Anthropic Console billing page (`console.anthropic.com/settings/billing`).
+- Real test: $5 charge, real card, live.
+- 3DS handling: if patchright detects a challenge frame, bubble it up through the TUI so the user can complete the OTP. Headless agents see `status='requires_human'`.
 
 **Exit criterion:** §3 below — at least one real $5 charge on a real merchant succeeds end to end through `termpay pay`.
 
@@ -73,11 +73,11 @@ These have to clear before more code lands. If any fails, we re-open the archite
 
 | # | Question | Pass condition | Owner |
 |---|---|---|---|
-| G1 | Can headless Playwright complete a real $5 OpenAI charge? | Charge posts; `payments.status = 'succeeded'` in DB; receipt visible in the email account. | dev |
-| G2 | Does Stripe Radar block the same charge after 10 retries? | At least 8 of 10 succeed. | dev |
+| G1 | Can headless patchright complete a real $5 Anthropic Console charge? | Charge posts; `payments.status = 'succeeded'` in DB; receipt visible in the email account. | dev |
+| G2 | Does bot detection block the same charge after 10 retries? | At least 8 of 10 succeed. | dev |
 | G3 | Does the keychain-backed vault round-trip survive a reboot? | After reboot, `termpay pay` decrypts without a new prompt. | dev |
-| G4 | Can the TUI kill switch beat an in-flight charge? | Kill while a Playwright session is open → the next `pay` for that agent denies before any network call. | dev |
-| G5 | Does CVV memory wipe actually happen? | A heap snapshot after `pay` contains no string equal to the CVV. | dev |
+| G4 | Can the TUI kill switch beat an in-flight charge? | Kill while a patchright session is open → the next `pay` for that agent denies before any network call. | dev |
+| G5 | Does CVV memory wipe actually happen? | No CVV string in process core dump after `pay` exits; `pay` process lifetime ≤ 30 seconds. | dev |
 
 G1, G2, G5 are the new ones added in this pivot.
 
@@ -87,9 +87,9 @@ G1, G2, G5 are the new ones added in this pivot.
 
 Ranked by current judgement of (impact × likelihood).
 
-1. **Playwright detection.** Stripe Radar, Cloudflare Bot Management, Datadome. Mitigation: stealth plugin, real fingerprint, narrow whitelist of friendly merchants if needed. Trigger to reconsider: G1 fails after one full week.
-2. **3DS / SCA challenges.** Many issuers force one-time-code prompts. Mitigation: TUI fallback that prompts the human. Trigger to reconsider: more than half of real charges hit a 3DS challenge.
-3. **Reg E / Reg Z liability (US).** A misbehaving agent can drain the card; bank disputes may not protect the user since they delegated authority. Mitigation for now: tight per-tx and monthly limits, kill switch. Public release needs an attorney-drafted EULA.
+1. **Reg E / Reg Z liability (US).** A misbehaving agent can drain the card; bank disputes may not protect the user since they delegated authority. Mitigation for now: tight per-tx and monthly limits, kill switch. Public release needs an attorney-drafted EULA.
+2. **patchright / bot detection.** Cloudflare Bot Management, Datadome, and merchant-specific fraud rules. Mitigation: patchright stealth mode, real fingerprint, narrow whitelist of friendly merchants if needed. Trigger to reconsider: G1 fails after one full week.
+3. **3DS / SCA challenges.** Many issuers force one-time-code prompts. Mitigation: TUI fallback that prompts the human. Trigger to reconsider: more than half of real charges hit a 3DS challenge.
 4. **Merchant terms of service.** Many checkout pages prohibit automated access. Mitigation: this version is personal use only; no public marketing claims about supported merchants.
 5. **Name collision.** The earlier candidate `agentwallet.ai` was taken by an unrelated paid product, which forced this rename. `termpay` was chosen because the npm name, the GitHub handle, and the `.dev` domain were all clear at the time of the pivot. Re-check before any public release; if it is taken by then, rename again.
 6. **Korean 전자금융거래법.** Public B2C distribution from a Korean entity may require PG registration. Mitigation: do not distribute publicly from a Korean entity until checked with 율촌 / 김장 / 광장.
@@ -99,7 +99,7 @@ Ranked by current judgement of (impact × likelihood).
 
 ## 5. Open decisions
 
-- **D1. Public name.** RESOLVED 2026-05-23 — chose `termpay`. Repo rename (`gh repo rename termpay`) deferred until after G1.
+- **D1. Public name.** RESOLVED 2026-05-24 — chose `termpay`. Repo rename deferred until after G1.
 - **D2. Merchant strategy.** Open list versus curated whitelist. Decide after G1/G2.
 - **D3. Linux vault backend.** `secret-tool` requires gnome-keyring; headless servers need a passphrase prompt. Decide when first Linux user appears.
 - **D4. CVV interaction model.** Env var only, prompt only, or both? Current bet: both, with the prompt as fallback.
