@@ -44,6 +44,35 @@ export interface Order {
   created_at: number;
 }
 
+export type PurchaseStatus =
+  | "running"
+  | "awaiting_human"
+  | "succeeded"
+  | "failed"
+  | "denied"
+  | "unknown";
+
+export interface Purchase {
+  id: string;
+  agent_id: string;
+  agent_name: string | null;
+  status: PurchaseStatus;
+  intent: string;
+  merchant: string;
+  max_amount_cents: number;
+  reason: string;
+  idempotency_key: string;
+  payment_id: string | null;
+  order_id: string | null;
+  evidence: string | null;
+  progress: string | null;
+  last_screenshot_path: string | null;
+  error: string | null;
+  driver: string; // "mock" | "anthropic_computer_use" | "openai_operator"
+  started_at: number;
+  finished_at: number | null;
+}
+
 export interface CardPlain {
   pan: string;
   exp_month: number;

@@ -75,6 +75,31 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_orders_payment_id
     ON orders(payment_id);
+
+  CREATE TABLE IF NOT EXISTS purchases (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL REFERENCES agents(id),
+    agent_name TEXT,
+    status TEXT NOT NULL,  -- 'running' | 'awaiting_human' | 'succeeded' | 'failed' | 'denied' | 'unknown'
+    intent TEXT NOT NULL,
+    merchant TEXT NOT NULL,
+    max_amount_cents INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    payment_id TEXT REFERENCES payments(id),
+    order_id TEXT REFERENCES orders(id),
+    evidence TEXT,
+    progress TEXT,
+    last_screenshot_path TEXT,
+    error TEXT,
+    driver TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    finished_at INTEGER,
+    UNIQUE (agent_id, idempotency_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_purchases_agent_started
+    ON purchases(agent_id, started_at);
 `;
 
 function runMigrations(instance: DatabaseSync): void {

@@ -8,6 +8,8 @@ import { evaluate } from "../lib/policy.ts";
 import { getAgentByApiKey } from "../lib/agent-keys.ts";
 import { dollarsToCents, formatUSD } from "../lib/money.ts";
 import { recordOrder, listOrders } from "../lib/orders.ts";
+import { createPurchase, getPurchaseForAgent } from "../lib/purchases.ts";
+import { runMockDriver } from "../lib/drivers/mock.ts";
 import type { Agent, Payment } from "../lib/types.ts";
 
 const server = new McpServer(
@@ -20,6 +22,8 @@ CVV: set TERMPAY_CARD_CVV before starting the MCP server for the session.
 
 Tools:
 - pay         — submit a payment (amount in USD, e.g. 5.0 for $5)
+- purchase    — multi-step e-commerce (Amazon/Etsy/etc.); async, returns purchase_id
+- purchase_status — poll a purchase by id
 - policy      — check if a payment would be approved without charging
 - payments    — list recent payments for this agent
 - orders      — list recorded orders
@@ -110,6 +114,105 @@ server.registerTool(
         },
       ],
       isError: !result.ok,
+    };
+  },
+);
+
+// ── tool: purchase ────────────────────────────────────────────────────────────
+// Async: returns immediately with purchase_id. A background driver (mock in
+// PR-A; anthropic_computer_use in PR-D) drives the merchant checkout and
+// updates the purchases row. Poll status with `purchase_status`.
+
+server.registerTool(
+  "purchase",
+  {
+    description:
+      "Make a multi-step purchase on a merchant (Amazon, Etsy, Shopify, etc.). " +
+      "Asynchronous — returns purchase_id immediately; poll with purchase_status. " +
+      "termpay launches a local browser, drives the checkout, and fills the card at the " +
+      "payment moment without exposing it to the LLM driver context. " +
+      "max_amount in USD caps the total — the purchase is aborted if the cart exceeds it. " +
+      "Re-using the same idempotency_key returns the original purchase without starting a new one.",
+    inputSchema: {
+      intent: z
+        .string()
+        .min(1)
+        .describe(
+          "What to buy, in natural language (e.g. 'buy this exact URL: https://www.amazon.com/dp/B0XXX')",
+        ),
+      merchant: z.string().min(1).describe("Merchant hostname (e.g. amazon.com)"),
+      max_amount: z
+        .number()
+        .positive()
+        .describe("Max total amount in USD; abort if cart exceeds this"),
+      reason: z.string().min(1).describe("Human-readable reason"),
+      idempotency_key: z
+        .string()
+        .min(1)
+        .describe("Stable unique key — same key returns the original purchase"),
+    },
+  },
+  (args) => {
+    const agent = requireAgent();
+    const max_amount_cents = dollarsToCents(args.max_amount);
+
+    const { purchase, created } = createPurchase({
+      agent_id: agent.id,
+      agent_name: mcpClientName,
+      intent: args.intent,
+      merchant: args.merchant,
+      max_amount_cents,
+      reason: args.reason,
+      idempotency_key: args.idempotency_key,
+      driver: "mock", // PR-D switches this based on env / availability
+    });
+
+    if (created) runMockDriver(purchase.id);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({
+            purchase_id: purchase.id,
+            status: purchase.status,
+            idempotent_replay: !created,
+          }),
+        },
+      ],
+    };
+  },
+);
+
+// ── tool: purchase_status ─────────────────────────────────────────────────────
+
+server.registerTool(
+  "purchase_status",
+  {
+    description:
+      "Poll a purchase started by `purchase`. Returns the current status, progress note, " +
+      "and any final fields (payment_id, order_id, evidence, error). Status enum: " +
+      "running | awaiting_human | succeeded | failed | denied | unknown.",
+    inputSchema: {
+      purchase_id: z.string().uuid().describe("ID returned by `purchase`"),
+    },
+  },
+  (args) => {
+    const agent = requireAgent();
+    const row = getPurchaseForAgent(args.purchase_id, agent.id);
+    if (!row) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ error: "purchase_not_found", purchase_id: args.purchase_id }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(row) }],
     };
   },
 );
