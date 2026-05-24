@@ -1,32 +1,26 @@
 {
-  "name": "agentwallet",
-  "private": true,
+  "name": "termpay",
   "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Local CLI wallet that lets AI agents pay autonomously with the user's credit card.",
+  "bin": { "termpay": "./bin/cli.ts" },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
     "typecheck": "tsc --noEmit",
-    "mcp": "tsx bin/mcp.ts"
+    "test": "node --test --experimental-strip-types 'lib/**/*.test.ts'"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "@stripe/react-stripe-js": "^3.0.0",
-    "@stripe/stripe-js": "^5.0.0",
-    "next": "^15.0.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "stripe": "^17.4.0",
+    "commander": "^12.1.0",
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "playwright": "^1.49.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
-  }
+    "typescript": "^5.7.2"
+  },
+  "engines": { "node": ">=22.5.0" }
 }

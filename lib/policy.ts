@@ -1,4 +1,4 @@
-import type { PolicyDecision, PolicyInput } from "@/lib/types";
+import type { PolicyDecision, PolicyInput } from "./types.ts";
 
 /**
  * Deny reason codes emitted by {@link evaluate}. Stable strings — clients and

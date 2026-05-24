@@ -16,4 +16,4 @@ dist
 next-env.d.ts
 *.tsbuildinfo
 
-# AgentWallet local DB lives in $HOME/.agentwallet/ — never in repo
+# termpay local DB lives in $HOME/.termpay/ — never in repo
