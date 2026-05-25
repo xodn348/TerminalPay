@@ -234,6 +234,66 @@ paymentsCmd
     console.log(`Payment ${id} reconciled → ${opts.status}`);
   });
 
+// ── browser ────────────────────────────────────────────────────────────────────
+
+const browserCmd = program
+  .command("browser")
+  .description("Manage merchant browser sessions (for multi-step purchases)");
+
+browserCmd
+  .command("login <merchant>")
+  .description(
+    "Open Chromium to log in to a merchant. Cookies are saved encrypted at " +
+      "~/.termpay/cookies/<merchant>.enc and reused by the purchase driver.",
+  )
+  .action(async (merchant: string) => {
+    const { chromium } = await import("patchright");
+    const { saveCookies } = await import("../lib/cookies.ts");
+
+    console.log(`Launching Chromium for ${merchant}…`);
+    const browser = await chromium.launch({ headless: false });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const url = merchant.startsWith("http") ? merchant : `https://${merchant}`;
+    await page.goto(url);
+
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    await rl.question("Press Enter once you're logged in (then we'll save cookies)… ");
+    rl.close();
+
+    const cookies = await context.cookies();
+    await context.close();
+    await browser.close();
+
+    saveCookies(merchant, cookies);
+    console.log(
+      `Saved ${cookies.length} cookies (encrypted) for ${merchant}. ` +
+        `The purchase driver will reuse this session.`,
+    );
+  });
+
+browserCmd
+  .command("logout <merchant>")
+  .description("Delete saved cookies for a merchant")
+  .action(async (merchant: string) => {
+    const { deleteCookies } = await import("../lib/cookies.ts");
+    const removed = deleteCookies(merchant);
+    console.log(removed ? `Removed cookies for ${merchant}` : `No saved cookies for ${merchant}`);
+  });
+
+browserCmd
+  .command("list")
+  .description("List merchants with saved cookies")
+  .action(async () => {
+    const { listSavedMerchants } = await import("../lib/cookies.ts");
+    const all = listSavedMerchants();
+    if (all.length === 0) {
+      console.log("No saved logins. Run: termpay browser login <merchant>");
+      return;
+    }
+    for (const m of all) console.log(m);
+  });
+
 // ── ui ─────────────────────────────────────────────────────────────────────────
 
 program
