@@ -1,6 +1,7 @@
 import type { BrowserDriver } from "./index.ts";
 import { MockDriver } from "./mock.ts";
 import { AnthropicComputerUseDriver } from "./anthropic_computer_use.ts";
+import { OpenaiOperatorDriver } from "./openai_operator.ts";
 
 // Selects the BrowserDriver implementation for the current process.
 //
@@ -17,9 +18,11 @@ export function selectDriver(): BrowserDriver {
       return new MockDriver();
     case "anthropic_computer_use":
       return new AnthropicComputerUseDriver();
+    case "openai_operator":
+      return new OpenaiOperatorDriver();
     default:
       throw new Error(
-        `Unknown driver: ${name}. Set TERMPAY_DRIVER to one of: mock, anthropic_computer_use`,
+        `Unknown driver: ${name}. Set TERMPAY_DRIVER to one of: mock, anthropic_computer_use, openai_operator`,
       );
   }
 }
