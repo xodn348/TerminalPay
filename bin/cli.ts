@@ -158,8 +158,8 @@ program
         process.exit(1);
       }
 
-      // CVV: env var first, then interactive prompt on TTY
-      let cvv = process.env["TERMPAY_CARD_CVV"] ?? "";
+      // CVV: env var first (accept legacy AGENTWALLET_CARD_CVV alias), then interactive prompt on TTY
+      let cvv = process.env["TERMPAY_CARD_CVV"] ?? process.env["AGENTWALLET_CARD_CVV"] ?? "";
       if (!cvv && process.stdin.isTTY) {
         const rl = createInterface({ input: process.stdin, output: process.stdout });
         cvv = await rl.question("Card CVV: ");
@@ -167,7 +167,7 @@ program
       }
       if (!cvv) {
         process.stderr.write(
-          JSON.stringify({ error: "cvv_required: set TERMPAY_CARD_CVV or run interactively" }) + "\n",
+          JSON.stringify({ error: "cvv_required: set TERMPAY_CARD_CVV (or AGENTWALLET_CARD_CVV) or run interactively" }) + "\n",
         );
         process.exit(1);
       }

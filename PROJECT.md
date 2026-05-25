@@ -196,7 +196,7 @@ termpay serve --port 7402              # optional HTTP API for non-MCP agents
 ### Environment
 
 - `TERMPAY_API_KEY` — Bearer token for the calling agent (issued by `termpay agent add`)
-- `TERMPAY_CARD_CVV` — CVV for the current session (alternative: stdin prompt)
+- `TERMPAY_CARD_CVV` — CVV for the current session (alternative: stdin prompt). Legacy alias `AGENTWALLET_CARD_CVV` is also accepted.
 - `ANTHROPIC_API_KEY` — required for `purchase` (Computer Use driver). termpay never logs or transmits this beyond Anthropic Messages API calls.
 - `TERMPAY_VAULT_KEY` — hex AES key fallback when macOS Keychain is unavailable (Linux, CI)
 
@@ -213,7 +213,7 @@ CVV is wiped from process state after the merchant returns an authorization deci
 | **2. Policy + pay command** | `termpay pay` wires policy, vault decrypt, payments row. | ✅ merged (PR #12) |
 | **3. patchright checkout** | `lib/checkout.ts` fills card on `console.anthropic.com`. **G1 = real $5 charge** verifies the architecture. | ✅ scaffolding merged (PR #13); G1 local verification pending |
 | **1.5. MCP wrapper + 6 tools** | `bin/mcp-server.ts`, `termpay mcp install`, `allowed_merchants` whitelist, `orders` table, `agent_name`. | ✅ merged (PR #18) |
-| **1.6. Computer Use orchestration** | `purchase` + `purchase_status` MCP tools, `lib/drivers/anthropic_computer_use.ts`, `browser_login` + encrypted cookie persistence, async progress reporting. **This unlocks multi-step merchants (Amazon, Etsy).** | 🟡 in progress (issue #19) |
+| **1.6. Computer Use orchestration** | `purchase` + `purchase_status` MCP tools, `lib/drivers/anthropic_computer_use.ts`, `browser_login` + encrypted cookie persistence, async progress reporting. **This unlocks multi-step merchants (Amazon, Etsy).** | ✅ merged (PRs #22–#26) |
 | **1.7. Plug-in rails** | `lib/drivers/openai_operator.ts` (stub until Operator API public), `lib/rails/privacy.ts` (single-use virtual card for liability isolation), `lib/rails/merchant_api.ts` (Vercel, Fly, Cloudflare direct). | ⬜ planned |
 | **2. Hardening** | 3DS fallback through the TUI, retry / idempotency edges, ASCII receipt rendering, per-merchant adapter library expansion. | ⬜ planned |
 
@@ -291,6 +291,7 @@ Stop conditions for the background worker:
 
 ## Changelog
 
+- **2026-05-25** — Phase 1.6 complete: `purchase` + `purchase_status` MCP tools, `AnthropicComputerUseDriver` with `signal_checkout_reached` card-fill isolation, `browser login` + AES-GCM cookie persistence, `OpenaiOperatorDriver` stub, Amazon merchant adapter. All 49 tests pass.
 - **2026-05-24** — Architecture lock for Phase 1.6: termpay is the single MCP entry point. The `purchase` tool internally orchestrates Anthropic Computer Use for multi-step merchants; card is filled by termpay's Patchright at the checkout moment so the LLM never sees it. Cookies persisted encrypted per merchant. Async pattern (`purchase_id` + `purchase_status` polling) avoids MCP timeout. 9 MCP tools total. Korean PG explicitly excluded until v3+.
 - **2026-05-24** — Phase 1.5 merged: MCP server with 6 tools (`pay`, `policy`, `payments`, `orders`, `kill`, `record_order`), `termpay mcp install` for Claude Code / Codex / Cursor, `allowed_merchants` whitelist, `orders` table, `agent_name` on payments.
 - **2026-05-24** — Phase 0-3 scaffolding merged: vault, db, types, CLI, TUI shell, pay command with policy + vault decrypt, Patchright checkout for `console.anthropic.com`. G1 (real $5 charge) verification pending on the user's local Mac.
