@@ -10,12 +10,19 @@ process.env["TERMPAY_VAULT_KEY"] =
 
 const { selectDriver } = await import("./registry.ts");
 const { MockDriver } = await import("./mock.ts");
+const { AnthropicComputerUseDriver } = await import("./anthropic_computer_use.ts");
 
-test("selectDriver returns MockDriver by default", () => {
+test("selectDriver returns MockDriver when nothing configured", () => {
   delete process.env["TERMPAY_DRIVER"];
-  const d = selectDriver();
-  assert.equal(d.name, "mock");
-  assert.ok(d instanceof MockDriver);
+  const prev = process.env["ANTHROPIC_API_KEY"];
+  delete process.env["ANTHROPIC_API_KEY"];
+  try {
+    const d = selectDriver();
+    assert.equal(d.name, "mock");
+    assert.ok(d instanceof MockDriver);
+  } finally {
+    if (prev !== undefined) process.env["ANTHROPIC_API_KEY"] = prev;
+  }
 });
 
 test("selectDriver respects TERMPAY_DRIVER=mock", () => {
@@ -31,14 +38,27 @@ test("selectDriver throws for unknown driver", () => {
   delete process.env["TERMPAY_DRIVER"];
 });
 
-test("selectDriver falls back to mock even when ANTHROPIC_API_KEY is set (PR-D will switch)", () => {
+test("selectDriver picks anthropic_computer_use when ANTHROPIC_API_KEY is set", () => {
   delete process.env["TERMPAY_DRIVER"];
   const prev = process.env["ANTHROPIC_API_KEY"];
   process.env["ANTHROPIC_API_KEY"] = "sk-test";
   try {
-    assert.equal(selectDriver().name, "mock");
+    const d = selectDriver();
+    assert.equal(d.name, "anthropic_computer_use");
+    assert.ok(d instanceof AnthropicComputerUseDriver);
   } finally {
     if (prev === undefined) delete process.env["ANTHROPIC_API_KEY"];
     else process.env["ANTHROPIC_API_KEY"] = prev;
+  }
+});
+
+test("TERMPAY_DRIVER override beats ANTHROPIC_API_KEY", () => {
+  process.env["TERMPAY_DRIVER"] = "mock";
+  process.env["ANTHROPIC_API_KEY"] = "sk-test";
+  try {
+    assert.equal(selectDriver().name, "mock");
+  } finally {
+    delete process.env["TERMPAY_DRIVER"];
+    delete process.env["ANTHROPIC_API_KEY"];
   }
 });
