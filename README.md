@@ -2,74 +2,54 @@
 
 > Let AI agents pay autonomously with your credit card — within limits you control.
 
-A local Node.js CLI + MCP server. Your card is encrypted on your machine. Claude Code, Codex, Cursor, or any MCP-aware agent can request payments via `termpay`. For single-page billing (Anthropic, OpenAI, Vercel) termpay drives the merchant page with [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) (stealth Playwright fork). For multi-step merchants (Amazon, Etsy) termpay orchestrates [Anthropic Computer Use](https://docs.anthropic.com/en/docs/build-with-claude/computer-use) internally — the agent calls one tool, termpay drives the browser end-to-end and fills the card at the payment moment (the LLM never sees the card).
+Local Node.js CLI + MCP server. Your card is encrypted on your machine. Claude Code, Codex, Cursor, or any MCP-aware agent can request payments via `termpay`. Single-page billing (Anthropic Console, OpenAI, Vercel) runs through [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) (stealth Playwright fork). Multi-step merchants (Amazon, Etsy) run through [Anthropic Computer Use](https://docs.anthropic.com/en/docs/build-with-claude/computer-use) — the agent calls one tool, termpay drives the browser end-to-end and fills the card at checkout. The LLM never sees the card.
 
-Single user, single card, single machine. No hosted service. PROJECT.md is the source of truth.
+Single user, single card, single machine. No hosted service. [PROJECT.md](./PROJECT.md) is the source of truth.
 
-## Setup (3 minutes)
+## Quick start
 
 ```bash
-# 1. Install
-npx termpay setup
-
-#    enter card · monthly limit · per-tx limit · allowed merchants
-
-# 2. Register with your agent
-termpay mcp install
-#    writes config snippets to:
-#      ~/.claude/mcp.json                 (Claude Code)
-#      ~/.codex/config.toml               (Codex)
-#      ~/.cursor/mcp.json                 (Cursor)
-#    restart your agent — termpay tools appear.
-
-# 3. (only for multi-step merchants) Log in once per merchant
-termpay browser login amazon.com
-#    opens a visible Chromium, you log in, cookies persisted encrypted.
-
-# 4. Set your Anthropic API key (only needed for `purchase`)
-export ANTHROPIC_API_KEY=sk-ant-...
+npx termpay setup                    # card · monthly limit · per-tx limit · allowed merchants
+termpay mcp install                  # writes MCP config for Claude Code / Codex / Cursor
+termpay browser login amazon.com     # one-time login per multi-step merchant
+export ANTHROPIC_API_KEY=sk-ant-...   # required for purchase (Computer Use)
 ```
 
-## Use it
+Restart your agent; termpay tools appear.
 
-In Claude Code / Codex / Cursor:
+## Demo
 
 ```
-You:    "Anthropic 크레딧 $20 충전해줘"
+You:    "Top up my Anthropic credits by $20"
 Claude: [calls termpay.pay]
         "$20 charged on console.anthropic.com. Balance now $47.20."
 
-You:    "Amazon에서 이 USB-C 케이블 사줘  https://amazon.com/dp/..."
+You:    "Buy this USB-C cable  https://amazon.com/dp/..."
 Claude: [calls termpay.purchase, polls termpay.purchase_status]
         "Order placed. $11.50. Order #123-456-789. FedEx delivery 5/28."
 
-You:    "내 결제·주문 보여줘"
-Claude: [calls termpay.payments + termpay.orders + Gmail MCP for shipping]
+You:    "Show my payments and orders this week"
+Claude: [calls termpay.payments + termpay.orders + Gmail MCP]
         [renders table]
 
-You:    "결제 다 멈춰"
+You:    "Stop all charges"
 Claude: [calls termpay.kill]
         "Kill switch engaged. All charges blocked."
 ```
 
 ## Guardrails
 
-- **Spending limits** — monthly cap, per-tx cap, allowed-merchants list, enforced before any browser action
-- **Reason required** — every charge has a `reason` string, stored for audit
-- **Kill switch** — 1-second effective, kills in-flight purchases via AbortController
-- **Card never leaves your machine** — AES-256-GCM in `~/.termpay/db.sqlite`, key in macOS Keychain
-- **Card never enters the LLM context** — for multi-step purchases, the Computer Use LLM signals "checkout reached" and termpay's Patchright fills the card directly via DOM
-- **CVV not persisted** — supplied per charge via env or stdin, wiped after auth decision, `pay` process ≤ 30 s
+Spending limits (monthly, per-tx, allowed-merchants) are enforced before any browser action. Every charge requires a `reason`, stored for audit. Kill switch is effective within one second via `AbortController`. The card is stored AES-256-GCM in `~/.termpay/db.sqlite`, key in the OS Keychain. CVV is supplied per charge and wiped after authorization. For multi-step purchases the Computer Use model signals "checkout reached"; termpay fills the card via DOM. **The card never enters the LLM context.**
 
-## What it works on today
+## Coverage
 
 | Category | Examples | Status |
 |---|---|---|
-| Single-page SaaS billing | Anthropic Console, OpenAI, Vercel, Fly, Cloudflare | ✅ G1 verification pending; rest are adapter-add work |
-| Multi-step Western e-commerce | Amazon, Etsy, Shopify stores | 🟡 Phase 1.6 in progress (Anthropic Computer Use orchestration) |
-| Direct merchant API | Vercel, Fly, Cloudflare native billing APIs | ⬜ Phase 1.7 |
-| Stripe ACP / SPT merchants | ChatGPT Instant Checkout stores | ⬜ Phase 2+ |
-| Korean PG (Coupang, Naver, Toss) | KCP, INICIS, Toss Payments | ❌ Out of scope — `휴대폰 본인인증` + bank-app push paradigm breaks autonomous flow |
+| Single-page SaaS billing | Anthropic Console · OpenAI · Vercel · Fly · Cloudflare | ✅ Phase 1.6 |
+| Multi-step Western e-commerce | Amazon · Etsy · Shopify | ✅ Phase 1.6 |
+| Direct merchant billing API | Vercel · Fly · Cloudflare native | ⬜ Phase 1.7 |
+| Stripe ACP / SPT merchants | ChatGPT Instant Checkout | ⬜ Phase 2+ |
+| Korean PG (Coupang · Naver · Toss) | KCP · INICIS · Toss | ❌ out of scope — phone-number identity verification and bank-app push break autonomous flow |
 
 ## Architecture
 
@@ -79,25 +59,24 @@ Claude: [calls termpay.kill]
 │                       │  MCP stdio                              │
 │                       ▼                                         │
 │  TERMPAY    Local Node process — one MCP server, 9 tools        │
-│                       │  router by merchant + amount + risk     │
+│             policy · encrypted vault · merchant router          │
+│                       │                                         │
 │                       ▼                                         │
 │  RAIL       patchright (single-page) · computer_use (multi-step)│
 │             merchant_api · privacy_com (planned)                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-See [PROJECT.md](./PROJECT.md) for the full spec and [ROADMAP.md](./ROADMAP.md) for phase status, validation gates, and risk register.
-
 ## Why protocol-less (not x402 / ACP / AP2)
 
-x402 (Coinbase), Stripe ACP, Google AP2, Visa Trusted Agent Protocol — all need merchant adoption on the other side. They cover the top 1% of merchants today and grow over 2026-2027. termpay's wager: **the long tail (everyday SaaS billing, e-commerce, anything that accepts a card in a checkout form) is reachable today via stealth browser automation**, with the agent identity and policy enforcement handled by termpay locally. When a merchant supports a real protocol, termpay's router picks it; until then, the browser path works.
+x402 (Coinbase), Stripe ACP, Google AP2, and Visa Trusted Agent Protocol all need merchant adoption on the other side. They cover the top 1% of merchants today and grow through 2026-2027. termpay's bet: the long tail — everyday SaaS billing, e-commerce, anything that accepts a card in a checkout form — is reachable today through stealth browser automation, with agent identity and policy enforcement handled locally. When a merchant supports a real protocol, termpay's router picks it; until then, the browser path works.
 
-This trades chargeback protection (your bank won't dispute charges you "authorized" by setting up an automated tool) for coverage breadth. You accept that risk explicitly via the allowed-merchants list and per-tx limit. Phase 1.7 adds [Privacy.com](https://privacy.com) single-use virtual cards as an optional rail to isolate liability without requiring Stripe Issuing or a new protocol.
+Tradeoff: chargeback protection is weaker for agent-authorized charges. You accept this explicitly via the allowed-merchants list and per-tx limit. Phase 1.7 adds [Privacy.com](https://privacy.com) single-use virtual cards as an optional rail to isolate liability without requiring Stripe Issuing or a new protocol.
 
 ## Status
 
-This is an active build. Phase 0–1.5 merged. Phase 1.6 (multi-step purchase via Computer Use) is being assembled by an autonomous cron routine and a local user verification step. See open issues for current bot-blocked items.
+Phases 0–1.6 merged. Phase 1.7 (Privacy.com rail) next. See [open issues](https://github.com/xodn348/TerminalPay/issues) for current bot-blocked items, and [docs/pitch.html](./docs/pitch.html) for the seed pitch deck.
 
 ## License
 
-MIT (planned; not yet attached).
+MIT (planned).
