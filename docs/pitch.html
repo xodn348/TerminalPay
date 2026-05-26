@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>termpay — Pitch Deck</title>
+
+<!--
+  ============================================================
+  REUSABLE PITCH DECK · TerminalPay (termpay)
+  ============================================================
+  Edit the DECK object below to retarget for a different VC.
+  Light theme. 10 slides. Hypothetical numbers are blank (TBD)
+  so the founder can fill them in per-meeting.
+  ============================================================
+-->
+<script>
+window.DECK = {
+  audience:     "YZi Labs",
+  stage:        "Seed",
+  submission:   "May 2026",
+  founder: {
+    name:       "Junhyuk Lee",
+    handle:     "@xodn348",
+    email:      "xodn348@tamu.edu",
+    entity:     "Ebsilon, Inc. (Delaware C-corp, est. Oct 2025)",
+    origin:     null
+  },
+  ask: {
+    amount:     null,
+    runway:     null,
+    use: [
+      "Merchant adapter coverage",
+      "Pre-public-beta security audit",
+      "Hosted policy control plane",
+      "Two senior engineers (browser automation + payments)"
+    ]
+  },
+  links: {
+    repo:       "https://github.com/xodn348/TerminalPay",
+    docs:       "https://github.com/xodn348/TerminalPay#readme"
+  }
+};
+</script>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f7f8fa;
+    --bg-code: #0d1117;
+    --fg: #0a0e14;
+    --fg-dim: #4b5563;
+    --fg-faint: #9aa3af;
+    --accent: #00875a;
+    --accent-soft: #e6f4ee;
+    --amber: #b86e00;
+    --red: #c0392b;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --mono: ui-monospace, "SF Mono", Menlo, "JetBrains Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); background: var(--bg-2); padding: 1px 6px; border-radius: 3px; font-size: 0.92em; }
+
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 64px 88px;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+  .slide.active { display: flex; animation: fade .3s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .num { position: absolute; top: 28px; right: 36px; font-family: var(--mono); color: var(--fg-faint); font-size: 12px; letter-spacing: 1px; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 2px; color: var(--fg-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 24px; }
+  .tag.accent { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+  h1 { font-family: var(--mono); font-size: 60px; font-weight: 600; letter-spacing: -1.5px; line-height: 1.05; margin-bottom: 16px; color: var(--fg); }
+  h2 { font-family: var(--mono); font-size: 34px; font-weight: 600; letter-spacing: -.5px; margin-bottom: 24px; line-height: 1.2; color: var(--fg); }
+  h3 { font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--accent); margin-bottom: 10px; }
+  p  { font-size: 18px; line-height: 1.55; color: var(--fg); margin-bottom: 12px; max-width: 64ch; }
+  p.lede { font-size: 21px; color: var(--fg); margin-bottom: 28px; max-width: 66ch; }
+  p.dim  { color: var(--fg-dim); }
+  ul { list-style: none; }
+  li { font-size: 17px; line-height: 1.5; margin-bottom: 8px; padding-left: 22px; position: relative; color: var(--fg); }
+  li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
+
+  .row { display: grid; gap: 24px; margin-top: 12px; }
+  .row.two   { grid-template-columns: 1fr 1fr; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 22px; }
+  .card h3 { margin-bottom: 6px; font-size: 17px; }
+  .card p  { font-size: 15px; margin-bottom: 0; color: var(--fg-dim); }
+
+  pre.ascii, pre.term {
+    font-family: var(--mono);
+    background: var(--bg-code);
+    border: 1px solid var(--bg-code);
+    border-radius: 6px;
+    padding: 18px 22px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #d8dee9;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  pre.term .you  { color: #ffaa00; }
+  pre.term .ai   { color: #6ad19f; }
+  pre.term .tool { color: #8a93a0; font-style: italic; }
+  pre.term .out  { color: #d8dee9; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { font-family: var(--mono); font-weight: 600; color: var(--fg-dim); font-size: 11.5px; letter-spacing: 1px; text-transform: uppercase; background: var(--bg-2); }
+  td.y { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  td.n { color: var(--red);    font-family: var(--mono); font-weight: 600; }
+  td.p { color: var(--amber);  font-family: var(--mono); font-weight: 600; }
+
+  .nav {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+    background: #ffffffee; border: 1px solid var(--border); border-radius: 999px;
+    font-family: var(--mono); font-size: 11px; color: var(--fg-dim);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,.04);
+  }
+  .nav button { background: none; border: none; color: var(--fg-dim); cursor: pointer; font-family: var(--mono); font-size: 14px; padding: 0 6px; }
+  .nav button:hover { color: var(--accent); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); display: inline-block; }
+  .dot.on { background: var(--accent); }
+
+  .cover {
+    justify-content: center; align-items: flex-start;
+    background:
+      radial-gradient(900px 500px at 18% 18%, rgba(0,135,90,.06), transparent),
+      radial-gradient(700px 350px at 82% 82%, rgba(184,110,0,.04), transparent),
+      var(--bg);
+  }
+  .cover .badge { font-family: var(--mono); font-size: 12.5px; color: var(--accent); margin-bottom: 44px; padding: 8px 14px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 2px; letter-spacing: 1px; }
+  .cover h1 { font-size: 84px; margin-bottom: 24px; }
+  .cover .tagline { font-size: 24px; color: var(--fg-dim); max-width: 62ch; margin-bottom: 60px; line-height: 1.4; }
+  .cover .meta { font-family: var(--mono); font-size: 13.5px; color: var(--fg-dim); line-height: 1.9; }
+  .cover .meta b { color: var(--fg); font-weight: 600; }
+
+  .tbd {
+    display: inline-block;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--amber); background: #fff6e5;
+    border: 1px dashed var(--amber); border-radius: 3px;
+    padding: 1px 7px; letter-spacing: .5px;
+  }
+
+  @media print {
+    html, body { overflow: visible; height: auto; background: #fff; }
+    .slide { display: flex !important; position: static; height: 100vh; page-break-after: always; }
+    .nav { display: none; }
+  }
+
+  @media (max-width: 1000px) {
+    .slide { padding: 40px 32px; }
+    h1 { font-size: 42px; }
+    .cover h1 { font-size: 54px; }
+    .row.two, .row.three { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- ============ 01 · COVER ============ -->
+<section class="slide cover">
+  <span class="num" data-num></span>
+  <span class="badge" id="audienceBadge"></span>
+  <h1>termpay</h1>
+  <p class="tagline">The agentic wallet. AI agents pay autonomously — within limits you control. Card never leaves your machine.</p>
+  <div class="meta" id="coverMeta"></div>
+</section>
+
+<!-- ============ 02 · PROBLEM ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag accent">Problem</span>
+  <h2>AI agents can write code, draft emails, run ops — but they can't pay.</h2>
+  <p class="lede">Every "top up my Anthropic credits", "renew this domain", "buy this part" forces a human context-switch back into a browser. The agent's autonomy ends at the checkout form.</p>
+
+  <table>
+    <thead>
+      <tr><th>Existing path</th><th>How it works</th><th>Why it fails</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Stripe ACP / Google AP2 / Coinbase x402 / Visa Trusted Agent</b></td>
+        <td>Merchant-side protocols. Card or token negotiated over an open standard.</td>
+        <td class="n">Needs merchant adoption. Covers a tiny slice today.</td>
+      </tr>
+      <tr>
+        <td><b>OpenAI Operator / Computer Use raw</b></td>
+        <td>LLM drives the browser, sees the checkout form, types the card.</td>
+        <td class="n">LLM sees the card. No policy layer. No audit. No kill switch.</td>
+      </tr>
+      <tr>
+        <td><b>Privacy.com virtual cards (manual)</b></td>
+        <td>Single-use card numbers generated in a web dashboard.</td>
+        <td class="n">No agent integration. The human still pastes the number.</td>
+      </tr>
+      <tr>
+        <td><b>"I'll just paste my card"</b></td>
+        <td>Human types card into the agent or its system prompt.</td>
+        <td class="n">Card leaks into logs, context windows, third-party LLMs.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 03 · SOLUTION ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag accent">Solution</span>
+  <h2>termpay — a local agentic wallet that any MCP-aware agent can call.</h2>
+  <div class="row two">
+    <div>
+      <h3>The shape</h3>
+      <ul>
+        <li>Local Node.js CLI + MCP server, runs on the user's machine</li>
+        <li>Card encrypted in <code>~/.termpay/db.sqlite</code> (AES-256-GCM, key in OS Keychain)</li>
+        <li>9 MCP tools: <code>pay</code>, <code>purchase</code>, <code>payments</code>, <code>orders</code>, <code>kill</code>, …</li>
+        <li>Spending limits + allowed-merchants list, enforced before any browser action</li>
+        <li>1-second kill switch via AbortController</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Two execution rails, one interface</h3>
+      <ul>
+        <li><b>Patchright</b> (stealth Playwright fork) for single-page billing — Anthropic, OpenAI, Vercel, Fly</li>
+        <li><b>Anthropic Computer Use</b> for multi-step commerce — Amazon, Etsy, Shopify</li>
+        <li>Router picks by merchant. Native APIs when available.</li>
+        <li>Privacy.com single-use virtual cards as an optional liability-isolation rail</li>
+      </ul>
+    </div>
+  </div>
+  <p class="lede" style="margin-top:28px; color:var(--accent); font-family:var(--mono); font-size:17px;">"MetaMask gave dApps signing power. termpay gives AI agents spending power."</p>
+</section>
+
+<!-- ============ 04 · DEMO ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag accent">Demo</span>
+  <h2>What it actually looks like in Claude Code today.</h2>
+<pre class="term">
+<span class="you">You</span>     "Top up my Anthropic credits by $20"
+<span class="ai">Claude</span>  <span class="tool">[calls termpay.pay]</span>
+        <span class="out">"$20 charged on console.anthropic.com. Balance now $47.20."</span>
+
+<span class="you">You</span>     "Buy this USB-C cable on Amazon  https://amazon.com/dp/..."
+<span class="ai">Claude</span>  <span class="tool">[calls termpay.purchase, polls termpay.purchase_status]</span>
+        <span class="out">"Order placed. $11.50. Order #123-456-789. FedEx delivery 5/28."</span>
+
+<span class="you">You</span>     "Show me everything I've paid this week"
+<span class="ai">Claude</span>  <span class="tool">[calls termpay.payments + termpay.orders + Gmail MCP]</span>
+        <span class="out">[renders table with reason, merchant, amount, shipping status]</span>
+
+<span class="you">You</span>     "Stop all charges, now."
+<span class="ai">Claude</span>  <span class="tool">[calls termpay.kill]</span>
+        <span class="out">"Kill switch engaged. All charges blocked."</span>
+</pre>
+  <p class="dim">Setup: <code>npx termpay setup</code> → enter card + limits → <code>termpay mcp install</code> → restart your agent. termpay tools appear in Claude Code, Codex, Cursor, or any MCP-aware client.</p>
+</section>
+
+<!-- ============ 05 · WHY NOW ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag">Why Now</span>
+  <h2>Four enablers converged in the last 12 months. None of them existed before.</h2>
+  <div class="row two">
+    <div class="card">
+      <h3>Anthropic Computer Use</h3>
+      <p>General-purpose visual web agent, shipped publicly Oct 2024. The first model that can actually navigate Amazon's checkout via API.</p>
+    </div>
+    <div class="card">
+      <h3>MCP critical mass</h3>
+      <p>Claude Code, Cursor, Codex, Continue, Zed all ship MCP. One server, every agent — the first stable agent-to-tool interface.</p>
+    </div>
+    <div class="card">
+      <h3>Patchright (stealth automation)</h3>
+      <p>Playwright fork that beats current bot-detection on real e-commerce. Without it, browser-rail wallets stay theoretical.</p>
+    </div>
+    <div class="card">
+      <h3>Protocol fragmentation</h3>
+      <p>ACP, AP2, x402, Visa TAP — four competing standards. Merchants will wait before picking one. termpay covers the gap.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 · DIFFERENTIATION ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag">Differentiation</span>
+  <h2>The only solution that's user-side, policy-first, and merchant-agnostic.</h2>
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>termpay</th>
+        <th>Stripe ACP</th>
+        <th>Coinbase x402</th>
+        <th>Privacy.com</th>
+        <th>Operator raw</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Works on Amazon today</td>           <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="p">manual</td><td class="y">YES</td></tr>
+      <tr><td>Works on Anthropic Console today</td><td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="p">manual</td><td class="y">YES</td></tr>
+      <tr><td>Card never enters LLM</td>           <td class="y">YES</td><td class="y">YES</td><td class="y">YES</td><td class="y">YES</td><td class="n">NO</td></tr>
+      <tr><td>Policy enforced locally</td>         <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td></tr>
+      <tr><td>1-second kill switch</td>            <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td></tr>
+      <tr><td>No merchant integration needed</td>  <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="y">YES</td><td class="y">YES</td></tr>
+      <tr><td>Works with any MCP agent</td>        <td class="y">YES</td><td class="p">SDK</td><td class="p">SDK</td><td class="n">NO</td><td class="n">vendor lock</td></tr>
+      <tr><td>Audit log + reason required</td>     <td class="y">YES</td><td class="p">partial</td><td class="p">partial</td><td class="n">NO</td><td class="n">NO</td></tr>
+    </tbody>
+  </table>
+  <p class="dim" style="margin-top:20px;">When real protocols win (they will), termpay's router picks them. We're not betting against ACP/AP2/x402 — we're the wallet that survives whichever wins.</p>
+</section>
+
+<!-- ============ 07 · ARCHITECTURE + SECURITY ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag">How It Works · Security</span>
+  <h2>One local process. Card never enters the LLM context — by construction.</h2>
+<pre class="ascii">
+┌─────────────────────────────────────────────────────────────────┐
+│  AGENT      Claude Code · Codex · Cursor · any MCP client       │
+│                       │  MCP stdio                              │
+│                       ▼                                         │
+│  TERMPAY    Local Node process — one MCP server, 9 tools        │
+│             ├─ policy engine   (limits · merchants · reason)    │
+│             ├─ encrypted vault (AES-256-GCM + OS Keychain)      │
+│             └─ router          (single-page · multi-step · API) │
+│                       │                                         │
+│                       ▼                                         │
+│  RAIL       patchright    (single-page · Anthropic, OpenAI...)  │
+│             computer_use  (multi-step · Amazon, Etsy...)        │
+│             merchant_api  (Vercel, Fly, Cloudflare native)      │
+│             privacy_com   (virtual cards · optional rail)       │
+└─────────────────────────────────────────────────────────────────┘
+</pre>
+  <div class="row two" style="margin-top:18px;">
+    <div>
+      <h3>Enforced</h3>
+      <ul>
+        <li>Card stored AES-256-GCM in local SQLite, key in OS Keychain</li>
+        <li>CVV supplied per charge via stdin/env, wiped after auth</li>
+        <li>Spending limits checked <i>before</i> the browser opens</li>
+        <li>Every charge requires a <code>reason</code> — stored and auditable</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Named as risk</h3>
+      <ul>
+        <li>Bank chargeback protection for agent-authorized charges is ambiguous</li>
+        <li>Merchant ToS may forbid automated purchase; allowed-list is the lever</li>
+        <li>Bot-detection arms race needs ongoing maintenance</li>
+        <li>Privacy.com virtual cards isolate liability per merchant</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 · TRACTION ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag">Traction</span>
+  <h2>Phases 0 through 1.5 merged. The product runs today.</h2>
+  <table>
+    <thead><tr><th>Phase</th><th>Scope</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><b>0. Scaffold</b></td><td>Next.js + SQLite + types + layout</td><td class="y">DONE</td></tr>
+      <tr><td><b>1. Card + Agent</b></td><td>Card setup flow · agent CRUD · API key issuance</td><td class="y">DONE</td></tr>
+      <tr><td><b>1.2 Payment engine</b></td><td><code>POST /api/pay</code> · policy gate · charge · idempotency</td><td class="y">DONE</td></tr>
+      <tr><td><b>1.5 MCP + Dashboard</b></td><td>MCP server · client SDK · kill switch UI</td><td class="y">DONE</td></tr>
+      <tr><td><b>1.6 Multi-step purchase</b></td><td>Anthropic Computer Use orchestration · Amazon end-to-end</td><td class="p">IN PROGRESS</td></tr>
+      <tr><td><b>1.7 Privacy.com rail</b></td><td>Virtual cards · per-merchant liability isolation</td><td>NEXT</td></tr>
+      <tr><td><b>2.0 Public beta</b></td><td>Hosted control plane · multi-machine sync · audit log retention</td><td>PLANNED</td></tr>
+    </tbody>
+  </table>
+  <p class="dim" style="margin-top:20px;">Meta-proof: Phase 1.6 is being built by an autonomous Anthropic Routine running every 4 hours on this same repo. The agent is paying its own development bill via the very tool it's building. Recursive eat-your-own-dogfood.</p>
+</section>
+
+<!-- ============ 09 · TEAM + BUSINESS MODEL ============ -->
+<section class="slide">
+  <span class="num" data-num></span>
+  <span class="tag">Team · Business Model</span>
+  <h2>Solo technical founder. Vehicle ready. Open core → SaaS → network.</h2>
+  <div class="row two">
+    <div>
+      <h3 id="founderName"></h3>
+      <p class="dim" id="founderHandle"></p>
+      <p class="dim" id="founderEntity" style="margin-top:6px;"></p>
+      <div id="founderOrigin" style="margin-top:16px;"></div>
+      <p class="dim" style="margin-top:18px;">Hiring with the round: senior browser-automation engineer, senior payments engineer, fractional security advisor.</p>
+    </div>
+    <div>
+      <h3>Three-stage monetization</h3>
+      <ul>
+        <li><b>Open core (free)</b> — MIT-licensed local CLI + MCP server. The on-ramp.</li>
+        <li><b>Cloud (SaaS)</b> — hosted policy dashboard, multi-machine sync, team accounts, audit log retention.</li>
+        <li><b>Network (take-rate)</b> — transactions routed through termpay-issued virtual cards. Volume-linked, materializes after adoption.</li>
+      </ul>
+      <p class="dim" style="margin-top:12px;">Pricing tiers and take-rate <span class="tbd">TBD</span> — finalized after Phase 2.0 beta data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 · ASK + VISION ============ -->
+<section class="slide cover">
+  <span class="num" data-num></span>
+  <span class="tag accent">Ask · Vision</span>
+  <h1 style="font-size:56px;">Every agent has a wallet by 2027.</h1>
+  <p class="tagline">termpay becomes the buyer-side identity + policy layer for AI commerce — Plaid for AI agents, but you own the keys.</p>
+
+  <div class="row two" style="width:100%; max-width: 1100px;">
+    <div>
+      <h3>The ask</h3>
+      <p style="font-family:var(--mono); font-size:17px;" id="askLine"></p>
+      <h3 style="margin-top:18px;">Use of funds</h3>
+      <ul id="useOfFunds"></ul>
+    </div>
+    <div>
+      <h3>What we want from <span id="vcNameInline"></span></h3>
+      <ul>
+        <li>Capital and runway to ship public beta</li>
+        <li>Intros to merchant partners for early adapter validation</li>
+        <li>Operator advice on payments-infra go-to-market</li>
+        <li>Honest pushback on the chargeback risk model</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="meta" style="margin-top: 40px; font-family: var(--mono); font-size: 13px; color: var(--fg-dim);">
+    <b>Repo:</b> <a href="#" id="repoLink"></a> &nbsp;·&nbsp;
+    <b>Contact:</b> <span id="contactEmail"></span>
+  </div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button id="prev">◀</button>
+  <span id="dots"></span>
+  <button id="next">▶</button>
+  <span style="margin-left: 8px; font-family: var(--mono); font-size:11px;">arrows · P=print</span>
+</div>
+
+<script>
+(function(){
+  const D = window.DECK;
+
+  document.getElementById('audienceBadge').textContent =
+    `Submitted to ${D.audience} · ${D.stage} · ${D.submission}`;
+  document.getElementById('coverMeta').innerHTML =
+    `<b>${D.founder.name}</b> · ${D.founder.handle}<br>` +
+    `${D.founder.entity}<br>` +
+    `<span style="color:var(--accent)">${D.founder.email}</span>`;
+
+  document.getElementById('founderName').textContent = D.founder.name;
+  document.getElementById('founderHandle').textContent = `${D.founder.handle} · ${D.founder.email}`;
+  document.getElementById('founderEntity').textContent = D.founder.entity;
+  if (D.founder.origin) {
+    document.getElementById('founderOrigin').innerHTML = `<p>${D.founder.origin}</p>`;
+  } else {
+    document.getElementById('founderOrigin').innerHTML =
+      `<p class="dim" style="font-style:italic; border-left:2px solid var(--amber); padding-left:12px;">` +
+      `[Founder origin story — paste into DECK.founder.origin at the top of this file]</p>`;
+  }
+
+  const askLine = document.getElementById('askLine');
+  const amt = D.ask.amount, rw = D.ask.runway;
+  const amtHTML = amt ? amt : '<span class="tbd">amount TBD</span>';
+  const rwHTML  = rw  ? rw  : '<span class="tbd">runway TBD</span>';
+  askLine.innerHTML = `Raising ${amtHTML} ${D.stage} · ${rwHTML}.`;
+
+  const uof = document.getElementById('useOfFunds');
+  D.ask.use.forEach(s => { const li=document.createElement('li'); li.textContent=s; uof.appendChild(li); });
+  document.getElementById('vcNameInline').textContent = D.audience;
+
+  document.getElementById('repoLink').href = D.links.repo;
+  document.getElementById('repoLink').textContent = D.links.repo;
+  document.getElementById('contactEmail').textContent = D.founder.email;
+
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((s, idx) => {
+    s.querySelector('[data-num]').textContent = `${String(idx+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+    const d = document.createElement('span'); d.className='dot'; dotsEl.appendChild(d);
+  });
+  const dots = [...dotsEl.children];
+  function show(n){
+    i = (n+slides.length)%slides.length;
+    slides.forEach((s,k)=>s.classList.toggle('active', k===i));
+    dots.forEach((d,k)=>d.classList.toggle('on', k===i));
+    location.hash = i+1;
+  }
+  document.getElementById('prev').onclick = ()=>show(i-1);
+  document.getElementById('next').onclick = ()=>show(i+1);
+  document.addEventListener('keydown', e => {
+    if (e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown') show(i+1);
+    else if (e.key==='ArrowLeft' || e.key==='PageUp') show(i-1);
+    else if (e.key==='Home') show(0);
+    else if (e.key==='End') show(slides.length-1);
+    else if (e.key==='p' || e.key==='P') window.print();
+  });
+  const startFromHash = parseInt(location.hash.replace('#',''),10);
+  show(Number.isFinite(startFromHash) && startFromHash>0 ? startFromHash-1 : 0);
+})();
+</script>
+</body>
+</html>
