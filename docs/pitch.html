@@ -25,7 +25,13 @@ window.DECK = {
     handle:     "@xodn348",
     email:      "xodn348@tamu.edu",
     entity:     "Ebsilon, Inc. (Delaware C-corp, est. Oct 2025)",
-    origin:     "I started this trying to make an agent autonomously buy bitcoin to pay its own electricity bill — self-funding compute. While building that, I realized agents could transact with each other too, and the scope expanded from there."
+    bio:        "M.S. Computer Science at Texas A&amp;M (May 2026), with 5 prior years as a senior consultant at EY Tech Risk auditing financial institutions including Korea Exchange and Woori Bank. CISA, CISSP, USCPA.",
+    origin:     "I started this trying to make an agent autonomously buy bitcoin to pay its own electricity bill — self-funding compute. While building that, I realized agents could transact with each other too, and the scope expanded from there.",
+    affiliations: [
+      { name: "Texas A&amp;M",     bg: "#500000", fg: "#ffffff" },
+      { name: "KAIST",          bg: "#004990", fg: "#ffffff" },
+      { name: "Ernst &amp; Young", bg: "#2e2e38", fg: "#ffe600" }
+    ]
   },
   ask: {
     amount:     "$500K",
@@ -140,8 +146,9 @@ window.DECK = {
       var(--bg);
   }
   .cover .badge { font-family: var(--mono); font-size: 12.5px; color: var(--accent); margin-bottom: 44px; padding: 8px 14px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 2px; letter-spacing: 1px; }
-  .cover h1 { font-size: 84px; margin-bottom: 24px; }
-  .cover .tagline { font-size: 24px; color: var(--fg-dim); max-width: 62ch; margin-bottom: 60px; line-height: 1.4; }
+  .cover h1 { font-size: 84px; margin-bottom: 16px; }
+  .cover .subtitle { font-family: var(--mono); font-size: 28px; color: var(--accent); margin-bottom: 28px; font-weight: 500; }
+  .cover .tagline { font-size: 22px; color: var(--fg-dim); max-width: 62ch; margin-bottom: 60px; line-height: 1.4; }
   .cover .meta { font-family: var(--mono); font-size: 13.5px; color: var(--fg-dim); line-height: 1.9; }
   .cover .meta b { color: var(--fg); font-weight: 600; }
 
@@ -152,6 +159,19 @@ window.DECK = {
     border: 1px dashed var(--amber); border-radius: 3px;
     padding: 1px 7px; letter-spacing: .5px;
   }
+
+  .affiliations { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .affiliation  {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 6px 11px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .founder-bio { font-size: 15px; line-height: 1.55; color: var(--fg); margin-top: 10px; max-width: none; }
 
   /* Print / PDF — landscape Letter, one slide per page */
   @page { size: 11in 8.5in; margin: 0; }
@@ -195,7 +215,8 @@ window.DECK = {
   <span class="num" data-num></span>
   <span class="badge" id="audienceBadge"></span>
   <h1>termpay</h1>
-  <p class="tagline">The agentic wallet. A local CLI + MCP server that will let AI agents pay autonomously — within limits the user controls. Card never leaves the machine.</p>
+  <p class="subtitle">The agentic wallet for AI agents.</p>
+  <p class="tagline">A local CLI + MCP server that will let Claude Code, Codex, Cursor, or any MCP-aware agent pay autonomously — within limits the user controls. Card never leaves the machine.</p>
   <div class="meta" id="coverMeta"></div>
 </section>
 
@@ -343,8 +364,10 @@ window.DECK = {
       <h3 id="founderName"></h3>
       <p class="dim" id="founderHandle"></p>
       <p class="dim" id="founderEntity" style="margin-top:6px;"></p>
+      <p class="founder-bio" id="founderBio"></p>
+      <div class="affiliations" id="founderAffiliations"></div>
       <div id="founderOrigin" style="margin-top:16px;"></div>
-      <p class="dim" style="margin-top:18px;">Going full-time as soon as OPT EAD activates (June 2026). Hiring with the round: a technical co-founder and a design co-founder.</p>
+      <p class="dim" style="margin-top:16px;">Going full-time as soon as OPT EAD activates (June 2026). Hiring with the round: a technical co-founder and a design co-founder.</p>
     </div>
     <div>
       <h3>Monetization staging</h3>
@@ -412,6 +435,20 @@ window.DECK = {
   document.getElementById('founderName').textContent = D.founder.name;
   document.getElementById('founderHandle').textContent = `${D.founder.handle} · ${D.founder.email}`;
   document.getElementById('founderEntity').textContent = D.founder.entity;
+  if (D.founder.bio) {
+    document.getElementById('founderBio').innerHTML = D.founder.bio;
+  }
+  if (Array.isArray(D.founder.affiliations)) {
+    const wrap = document.getElementById('founderAffiliations');
+    D.founder.affiliations.forEach(a => {
+      const span = document.createElement('span');
+      span.className = 'affiliation';
+      span.style.background = a.bg;
+      span.style.color = a.fg;
+      span.innerHTML = a.name;
+      wrap.appendChild(span);
+    });
+  }
   if (D.founder.origin) {
     document.getElementById('founderOrigin').innerHTML = `<p>${D.founder.origin}</p>`;
   } else {
