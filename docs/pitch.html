@@ -10,14 +10,15 @@
   REUSABLE PITCH DECK · TerminalPay (termpay)
   ============================================================
   Edit the DECK object below to retarget for a different VC.
-  Light theme. 10 slides. Hypothetical numbers are blank (TBD)
-  so the founder can fill them in per-meeting.
+  7 slides, light theme. Honest pre-seed framing: this is the
+  approach we're building, not a working product.
+  PDF build: see docs/build-pdf.sh (Chrome headless, landscape).
   ============================================================
 -->
 <script>
 window.DECK = {
   audience:     "YZi Labs",
-  stage:        "Seed",
+  stage:        "Pre-seed",
   submission:   "May 2026",
   founder: {
     name:       "Junhyuk Lee",
@@ -30,10 +31,10 @@ window.DECK = {
     amount:     null,
     runway:     null,
     use: [
-      "Merchant adapter coverage",
-      "Pre-public-beta security audit",
-      "Hosted policy control plane",
-      "Two senior engineers (browser automation + payments)"
+      "Single-page billing rail (Anthropic, OpenAI, Vercel) via Patchright",
+      "Multi-step purchase rail via Anthropic Computer Use",
+      "Encrypted local vault and policy engine",
+      "Pre-public-beta security audit"
     ]
   },
   links: {
@@ -100,7 +101,7 @@ window.DECK = {
   .card h3 { margin-bottom: 6px; font-size: 17px; }
   .card p  { font-size: 15px; margin-bottom: 0; color: var(--fg-dim); }
 
-  pre.ascii, pre.term {
+  pre.ascii {
     font-family: var(--mono);
     background: var(--bg-code);
     border: 1px solid var(--bg-code);
@@ -112,17 +113,11 @@ window.DECK = {
     overflow-x: auto;
     margin: 8px 0;
   }
-  pre.term .you  { color: #ffaa00; }
-  pre.term .ai   { color: #6ad19f; }
-  pre.term .tool { color: #8a93a0; font-style: italic; }
-  pre.term .out  { color: #d8dee9; }
 
   table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14.5px; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
   th { font-family: var(--mono); font-weight: 600; color: var(--fg-dim); font-size: 11.5px; letter-spacing: 1px; text-transform: uppercase; background: var(--bg-2); }
-  td.y { color: var(--accent); font-family: var(--mono); font-weight: 600; }
   td.n { color: var(--red);    font-family: var(--mono); font-weight: 600; }
-  td.p { color: var(--amber);  font-family: var(--mono); font-weight: 600; }
 
   .nav {
     position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
@@ -158,10 +153,30 @@ window.DECK = {
     padding: 1px 7px; letter-spacing: .5px;
   }
 
+  /* Print / PDF — landscape Letter, one slide per page */
+  @page { size: 11in 8.5in; margin: 0; }
   @media print {
     html, body { overflow: visible; height: auto; background: #fff; }
-    .slide { display: flex !important; position: static; height: 100vh; page-break-after: always; }
+    .slide {
+      display: flex !important;
+      position: static;
+      width: 11in; height: 8.5in;
+      padding: 0.55in 0.75in;
+      page-break-after: always;
+      overflow: visible;
+    }
+    .slide:last-child { page-break-after: auto; }
     .nav { display: none; }
+    h1 { font-size: 48px; }
+    h2 { font-size: 28px; margin-bottom: 18px; }
+    .cover h1 { font-size: 64px; }
+    .cover .tagline { font-size: 20px; margin-bottom: 32px; }
+    p, li { font-size: 14px; }
+    p.lede { font-size: 16px; }
+    pre.ascii { font-size: 10.5px; padding: 12px 16px; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 10px; }
+    .num { color: var(--fg-faint); }
   }
 
   @media (max-width: 1000px) {
@@ -180,7 +195,7 @@ window.DECK = {
   <span class="num" data-num></span>
   <span class="badge" id="audienceBadge"></span>
   <h1>termpay</h1>
-  <p class="tagline">The agentic wallet. AI agents pay autonomously — within limits you control. Card never leaves your machine.</p>
+  <p class="tagline">The agentic wallet. A local CLI + MCP server that will let AI agents pay autonomously — within limits the user controls. Card never leaves the machine.</p>
   <div class="meta" id="coverMeta"></div>
 </section>
 
@@ -193,7 +208,7 @@ window.DECK = {
 
   <table>
     <thead>
-      <tr><th>Existing path</th><th>How it works</th><th>Why it fails</th></tr>
+      <tr><th>Existing path</th><th>How it works</th><th>Why it falls short</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -220,19 +235,19 @@ window.DECK = {
   </table>
 </section>
 
-<!-- ============ 03 · SOLUTION ============ -->
+<!-- ============ 03 · APPROACH ============ -->
 <section class="slide">
   <span class="num" data-num></span>
-  <span class="tag accent">Solution</span>
-  <h2>termpay — a local agentic wallet that any MCP-aware agent can call.</h2>
+  <span class="tag accent">Approach</span>
+  <h2>What we're building: a local wallet any MCP-aware agent can call.</h2>
   <div class="row two">
     <div>
       <h3>The shape</h3>
       <ul>
         <li>Local Node.js CLI + MCP server, runs on the user's machine</li>
         <li>Card encrypted in <code>~/.termpay/db.sqlite</code> (AES-256-GCM, key in OS Keychain)</li>
-        <li>9 MCP tools: <code>pay</code>, <code>purchase</code>, <code>payments</code>, <code>orders</code>, <code>kill</code>, …</li>
-        <li>Spending limits + allowed-merchants list, enforced before any browser action</li>
+        <li>MCP tools: <code>pay</code>, <code>purchase</code>, <code>payments</code>, <code>orders</code>, <code>kill</code>, …</li>
+        <li>Spending limits and allowed-merchants list, enforced before any browser action</li>
         <li>1-second kill switch via AbortController</li>
       </ul>
     </div>
@@ -241,40 +256,15 @@ window.DECK = {
       <ul>
         <li><b>Patchright</b> (stealth Playwright fork) for single-page billing — Anthropic, OpenAI, Vercel, Fly</li>
         <li><b>Anthropic Computer Use</b> for multi-step commerce — Amazon, Etsy, Shopify</li>
-        <li>Router picks by merchant. Native APIs when available.</li>
-        <li>Privacy.com single-use virtual cards as an optional liability-isolation rail</li>
+        <li>Router picks rail by merchant. Native APIs when available.</li>
+        <li>Privacy.com single-use virtual cards planned as an optional liability-isolation rail</li>
       </ul>
     </div>
   </div>
-  <p class="lede" style="margin-top:28px; color:var(--accent); font-family:var(--mono); font-size:17px;">"MetaMask gave dApps signing power. termpay gives AI agents spending power."</p>
+  <p class="lede" style="margin-top:28px; color:var(--accent); font-family:var(--mono); font-size:17px;">"MetaMask gave dApps signing power. termpay aims to give AI agents spending power."</p>
 </section>
 
-<!-- ============ 04 · DEMO ============ -->
-<section class="slide">
-  <span class="num" data-num></span>
-  <span class="tag accent">Demo</span>
-  <h2>What it actually looks like in Claude Code today.</h2>
-<pre class="term">
-<span class="you">You</span>     "Top up my Anthropic credits by $20"
-<span class="ai">Claude</span>  <span class="tool">[calls termpay.pay]</span>
-        <span class="out">"$20 charged on console.anthropic.com. Balance now $47.20."</span>
-
-<span class="you">You</span>     "Buy this USB-C cable on Amazon  https://amazon.com/dp/..."
-<span class="ai">Claude</span>  <span class="tool">[calls termpay.purchase, polls termpay.purchase_status]</span>
-        <span class="out">"Order placed. $11.50. Order #123-456-789. FedEx delivery 5/28."</span>
-
-<span class="you">You</span>     "Show me everything I've paid this week"
-<span class="ai">Claude</span>  <span class="tool">[calls termpay.payments + termpay.orders + Gmail MCP]</span>
-        <span class="out">[renders table with reason, merchant, amount, shipping status]</span>
-
-<span class="you">You</span>     "Stop all charges, now."
-<span class="ai">Claude</span>  <span class="tool">[calls termpay.kill]</span>
-        <span class="out">"Kill switch engaged. All charges blocked."</span>
-</pre>
-  <p class="dim">Setup: <code>npx termpay setup</code> → enter card + limits → <code>termpay mcp install</code> → restart your agent. termpay tools appear in Claude Code, Codex, Cursor, or any MCP-aware client.</p>
-</section>
-
-<!-- ============ 05 · WHY NOW ============ -->
+<!-- ============ 04 · WHY NOW ============ -->
 <section class="slide">
   <span class="num" data-num></span>
   <span class="tag">Why Now</span>
@@ -294,52 +284,22 @@ window.DECK = {
     </div>
     <div class="card">
       <h3>Protocol fragmentation</h3>
-      <p>ACP, AP2, x402, Visa TAP — four competing standards. Merchants will wait before picking one. termpay covers the gap.</p>
+      <p>ACP, AP2, x402, Visa TAP — four competing standards. Merchants will wait before picking one. termpay can cover the gap.</p>
     </div>
   </div>
 </section>
 
-<!-- ============ 06 · DIFFERENTIATION ============ -->
+<!-- ============ 05 · SYSTEM DESIGN ============ -->
 <section class="slide">
   <span class="num" data-num></span>
-  <span class="tag">Differentiation</span>
-  <h2>The only solution that's user-side, policy-first, and merchant-agnostic.</h2>
-  <table>
-    <thead>
-      <tr>
-        <th></th>
-        <th>termpay</th>
-        <th>Stripe ACP</th>
-        <th>Coinbase x402</th>
-        <th>Privacy.com</th>
-        <th>Operator raw</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>Works on Amazon today</td>           <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="p">manual</td><td class="y">YES</td></tr>
-      <tr><td>Works on Anthropic Console today</td><td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="p">manual</td><td class="y">YES</td></tr>
-      <tr><td>Card never enters LLM</td>           <td class="y">YES</td><td class="y">YES</td><td class="y">YES</td><td class="y">YES</td><td class="n">NO</td></tr>
-      <tr><td>Policy enforced locally</td>         <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td></tr>
-      <tr><td>1-second kill switch</td>            <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td><td class="n">NO</td></tr>
-      <tr><td>No merchant integration needed</td>  <td class="y">YES</td><td class="n">NO</td><td class="n">NO</td><td class="y">YES</td><td class="y">YES</td></tr>
-      <tr><td>Works with any MCP agent</td>        <td class="y">YES</td><td class="p">SDK</td><td class="p">SDK</td><td class="n">NO</td><td class="n">vendor lock</td></tr>
-      <tr><td>Audit log + reason required</td>     <td class="y">YES</td><td class="p">partial</td><td class="p">partial</td><td class="n">NO</td><td class="n">NO</td></tr>
-    </tbody>
-  </table>
-  <p class="dim" style="margin-top:20px;">When real protocols win (they will), termpay's router picks them. We're not betting against ACP/AP2/x402 — we're the wallet that survives whichever wins.</p>
-</section>
-
-<!-- ============ 07 · ARCHITECTURE + SECURITY ============ -->
-<section class="slide">
-  <span class="num" data-num></span>
-  <span class="tag">How It Works · Security</span>
+  <span class="tag">System design · Security model</span>
   <h2>One local process. Card never enters the LLM context — by construction.</h2>
 <pre class="ascii">
 ┌─────────────────────────────────────────────────────────────────┐
 │  AGENT      Claude Code · Codex · Cursor · any MCP client       │
 │                       │  MCP stdio                              │
 │                       ▼                                         │
-│  TERMPAY    Local Node process — one MCP server, 9 tools        │
+│  TERMPAY    Local Node process — one MCP server                 │
 │             ├─ policy engine   (limits · merchants · reason)    │
 │             ├─ encrypted vault (AES-256-GCM + OS Keychain)      │
 │             └─ router          (single-page · multi-step · API) │
@@ -353,7 +313,7 @@ window.DECK = {
 </pre>
   <div class="row two" style="margin-top:18px;">
     <div>
-      <h3>Enforced</h3>
+      <h3>Designed enforcement</h3>
       <ul>
         <li>Card stored AES-256-GCM in local SQLite, key in OS Keychain</li>
         <li>CVV supplied per charge via stdin/env, wiped after auth</li>
@@ -367,63 +327,43 @@ window.DECK = {
         <li>Bank chargeback protection for agent-authorized charges is ambiguous</li>
         <li>Merchant ToS may forbid automated purchase; allowed-list is the lever</li>
         <li>Bot-detection arms race needs ongoing maintenance</li>
-        <li>Privacy.com virtual cards isolate liability per merchant</li>
+        <li>Privacy.com virtual cards can isolate liability per merchant</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- ============ 08 · TRACTION ============ -->
+<!-- ============ 06 · TEAM + BUSINESS MODEL ============ -->
 <section class="slide">
   <span class="num" data-num></span>
-  <span class="tag">Traction</span>
-  <h2>Phases 0 through 1.5 merged. The product runs today.</h2>
-  <table>
-    <thead><tr><th>Phase</th><th>Scope</th><th>Status</th></tr></thead>
-    <tbody>
-      <tr><td><b>0. Scaffold</b></td><td>Next.js + SQLite + types + layout</td><td class="y">DONE</td></tr>
-      <tr><td><b>1. Card + Agent</b></td><td>Card setup flow · agent CRUD · API key issuance</td><td class="y">DONE</td></tr>
-      <tr><td><b>1.2 Payment engine</b></td><td><code>POST /api/pay</code> · policy gate · charge · idempotency</td><td class="y">DONE</td></tr>
-      <tr><td><b>1.5 MCP + Dashboard</b></td><td>MCP server · client SDK · kill switch UI</td><td class="y">DONE</td></tr>
-      <tr><td><b>1.6 Multi-step purchase</b></td><td>Anthropic Computer Use orchestration · Amazon end-to-end</td><td class="p">IN PROGRESS</td></tr>
-      <tr><td><b>1.7 Privacy.com rail</b></td><td>Virtual cards · per-merchant liability isolation</td><td>NEXT</td></tr>
-      <tr><td><b>2.0 Public beta</b></td><td>Hosted control plane · multi-machine sync · audit log retention</td><td>PLANNED</td></tr>
-    </tbody>
-  </table>
-  <p class="dim" style="margin-top:20px;">Meta-proof: Phase 1.6 is being built by an autonomous Anthropic Routine running every 4 hours on this same repo. The agent is paying its own development bill via the very tool it's building. Recursive eat-your-own-dogfood.</p>
-</section>
-
-<!-- ============ 09 · TEAM + BUSINESS MODEL ============ -->
-<section class="slide">
-  <span class="num" data-num></span>
-  <span class="tag">Team · Business Model</span>
-  <h2>Solo technical founder. Vehicle ready. Open core → SaaS → network.</h2>
+  <span class="tag">Team · Business model</span>
+  <h2>Solo technical founder. Vehicle ready. Open core to start.</h2>
   <div class="row two">
     <div>
       <h3 id="founderName"></h3>
       <p class="dim" id="founderHandle"></p>
       <p class="dim" id="founderEntity" style="margin-top:6px;"></p>
       <div id="founderOrigin" style="margin-top:16px;"></div>
-      <p class="dim" style="margin-top:18px;">Hiring with the round: senior browser-automation engineer, senior payments engineer, fractional security advisor.</p>
+      <p class="dim" style="margin-top:18px;">Going full-time as soon as OPT EAD activates (June 2026). Hiring with the round: browser-automation and payments engineers.</p>
     </div>
     <div>
-      <h3>Three-stage monetization</h3>
+      <h3>Monetization staging</h3>
       <ul>
         <li><b>Open core (free)</b> — MIT-licensed local CLI + MCP server. The on-ramp.</li>
         <li><b>Cloud (SaaS)</b> — hosted policy dashboard, multi-machine sync, team accounts, audit log retention.</li>
-        <li><b>Network (take-rate)</b> — transactions routed through termpay-issued virtual cards. Volume-linked, materializes after adoption.</li>
+        <li><b>Network (take-rate)</b> — transactions routed through termpay-issued virtual cards. Long-term, volume-linked.</li>
       </ul>
-      <p class="dim" style="margin-top:12px;">Pricing tiers and take-rate <span class="tbd">TBD</span> — finalized after Phase 2.0 beta data.</p>
+      <p class="dim" style="margin-top:12px;">Pricing and take-rate <span class="tbd">TBD</span> — finalized after early-adopter data.</p>
     </div>
   </div>
 </section>
 
-<!-- ============ 10 · ASK + VISION ============ -->
+<!-- ============ 07 · ASK + VISION ============ -->
 <section class="slide cover">
   <span class="num" data-num></span>
   <span class="tag accent">Ask · Vision</span>
   <h1 style="font-size:56px;">Every agent has a wallet by 2027.</h1>
-  <p class="tagline">termpay becomes the buyer-side identity + policy layer for AI commerce — Plaid for AI agents, but you own the keys.</p>
+  <p class="tagline">The eventual destination is fully autonomous agent-to-agent payment. The starting point is letting Claude Code, Codex, and Cursor pay on the user's behalf, safely, today.</p>
 
   <div class="row two" style="width:100%; max-width: 1100px;">
     <div>
@@ -435,7 +375,7 @@ window.DECK = {
     <div>
       <h3>What we want from <span id="vcNameInline"></span></h3>
       <ul>
-        <li>Capital and runway to ship public beta</li>
+        <li>Capital and runway to build through public beta</li>
         <li>Intros to merchant partners for early adapter validation</li>
         <li>Operator advice on payments-infra go-to-market</li>
         <li>Honest pushback on the chargeback risk model</li>
@@ -443,7 +383,7 @@ window.DECK = {
     </div>
   </div>
 
-  <div class="meta" style="margin-top: 40px; font-family: var(--mono); font-size: 13px; color: var(--fg-dim);">
+  <div class="meta" style="margin-top: 36px; font-family: var(--mono); font-size: 13px; color: var(--fg-dim);">
     <b>Repo:</b> <a href="#" id="repoLink"></a> &nbsp;·&nbsp;
     <b>Contact:</b> <span id="contactEmail"></span>
   </div>
